@@ -11,10 +11,14 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@azure/msal-node": "^5.4.0",
+    "@microsoft/microsoft-graph-client": "^3.0.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "isomorphic-fetch": "^3.0.0",
     "multer": "^2.2.0",
+    "node-cron": "^4.6.0",
     "nodemailer": "^9.0.3",
     "winston": "^3.19.0",
     "xlsx": "^0.18.5"
