@@ -7,6 +7,8 @@ import { WfmApiService } from './core/services/wfm-api.service';
 
 import { Schedule } from './features/schedule/schedule';
 import { History } from './features/history/history';
+import {PublishedSchedule} from './features/published-schedule/published-schedule';
+import { RequireHc } from './features/require-hc/require-hc';
 
 type TabName = 'schedule' | 'history' | 'public' | 'require';
 
@@ -16,7 +18,9 @@ type TabName = 'schedule' | 'history' | 'public' | 'require';
   imports: [
     CommonModule,
     Schedule,
-    History
+    History,
+    PublishedSchedule,
+    RequireHc
   ],
   templateUrl: './app.html',
   styleUrl: './app.css',

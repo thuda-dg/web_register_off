@@ -1,0 +1,77 @@
+<div class="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+  <label>
+    <span class="mb-1 block text-xs font-semibold text-slate-500">
+      Kỳ lương
+    </span>
+
+    <select
+      class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+      [ngModel]="value.cycle"
+      (ngModelChange)="updateFilter('cycle', $event)"
+    >
+      <option value="">Tất cả kỳ</option>
+
+      @for (cycle of options.cycles; track cycle.value) {
+        <option [value]="cycle.value">
+          Kỳ {{ cycle.label }}
+        </option>
+      }
+    </select>
+  </label>
+
+  <label>
+    <span class="mb-1 block text-xs font-semibold text-slate-500">
+      Task
+    </span>
+
+    <select
+      class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+      [ngModel]="value.task"
+      (ngModelChange)="updateFilter('task', $event)"
+    >
+      <option value="">Tất cả task</option>
+
+      @for (task of options.tasks; track task) {
+        <option [value]="task">
+          {{ task }}
+        </option>
+      }
+    </select>
+  </label>
+
+  <label>
+    <span class="mb-1 block text-xs font-semibold text-slate-500">
+      Team
+    </span>
+
+    <select
+      class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+      [ngModel]="value.team"
+      (ngModelChange)="updateFilter('team', $event)"
+    >
+      <option value="">Tất cả team</option>
+
+      @for (team of options.teams; track team) {
+        <option [value]="team">
+          {{ team }}
+        </option>
+      }
+    </select>
+  </label>
+
+  <label>
+    <span class="mb-1 block text-xs font-semibold text-slate-500">
+      Trạng thái slot
+    </span>
+
+    <select
+      class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+      [ngModel]="value.status"
+      (ngModelChange)="updateFilter('status', $event)"
+    >
+      <option value="">Tất cả trạng thái</option>
+      <option value="available">Còn slot</option>
+      <option value="full">Đã đủ slot</option>
+    </select>
+  </label>
+</div>

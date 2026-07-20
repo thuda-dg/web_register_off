@@ -133,7 +133,6 @@
 
     </nav>
 
-    <!-- Tab đăng ký lịch -->
     <app-schedule
       *ngIf="activeTab === 'schedule' && employee && calRange"
       [employee]="employee"
@@ -141,25 +140,17 @@
       [reasonMap]="reasonMap"
     />
 
-    <!-- Tab lịch sử -->
     <app-history
       *ngIf="activeTab === 'history'"
     />
 
-    <!-- Các tab chưa làm -->
-    <section
+    <app-published-schedule
       *ngIf="activeTab === 'public'"
-      class="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm"
-    >
-      Tab Lịch nghỉ đã chốt
-    </section>
+    />
 
-    <section
+    <app-require-hc
       *ngIf="activeTab === 'require'"
-      class="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm"
-    >
-      Tab RequireHC
-    </section>
+    />
 
 
   </div>
