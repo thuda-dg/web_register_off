@@ -1,0 +1,59 @@
+<app-closed-banner *ngIf="formClosed" [nextOpenDate]="calRange.regOpen.nextOpenDate || '...'" />
+
+<ng-container *ngIf="!formClosed">
+  <app-done-banner class="mb-5 block" *ngIf="doneEntries.length" [entries]="doneEntries" [payMonth]="calRange.payMonth" />
+
+  <section class="grid items-start gap-5 lg:grid-cols-[310px_1fr]">
+    <app-leave-calendar
+      [cells]="calendarCells"
+      [monthOptions]="monthOptions"
+      [currentMonthValue]="currentMonthValue"
+      [rangeLabel]="'Kỳ tháng ' + calRange.payMonth + ' (' + fmt(calRange.startDate) + ' – ' + fmt(calRange.endDate) + ')'"
+      (monthValueChange)="setMonth($event)"
+      (moveMonth)="moveMonth($event)"
+      (dateToggle)="toggleDate($event)"
+    />
+
+    <div class="space-y-3">
+      <div class="min-h-14 rounded-lg bg-emerald-500 px-4 py-3 text-white">
+        <p class="text-[11px] text-white/85">Ngày đã chọn ({{ selectedDates.length }} ngày)</p>
+        <p class="mt-1 text-sm font-semibold">{{ selectedDatesText }}</p>
+      </div>
+
+      <div class="rounded-lg border px-4 py-3 text-sm font-semibold" [ngClass]="offSubmitDone ? 'border-blue-200 bg-blue-50 text-blue-900' : 'border-emerald-200 bg-emerald-50 text-emerald-900'">
+        <span *ngIf="!offSubmitDone">Bước 1: Chọn ngày <strong>OFF</strong> và đăng ký trước.</span>
+        <span *ngIf="offSubmitDone">Bước 2: OFF đã được đăng ký. Bạn có thể chọn các loại nghỉ còn lại.</span>
+      </div>
+
+      <app-selected-date-list
+        [selectedDates]="selectedDates"
+        [entries]="entryByDate"
+        [leaveTypes]="typesShown"
+        [reasonMap]="reasonMap"
+        (typeChanged)="onTypeChange($event)"
+        (dateRemoved)="removeDate($event)"
+      />
+
+      <div *ngIf="errorMessage" class="rounded-lg border-l-4 border-red-500 bg-red-100 p-4 text-sm text-red-900">{{ errorMessage }}</div>
+      <div *ngIf="successMessage" class="rounded-lg border-l-4 border-green-500 bg-green-100 p-4 text-sm text-green-900">{{ successMessage }}</div>
+
+      <button
+        type="button"
+        class="w-full rounded-lg bg-emerald-500 px-4 py-3 font-bold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-emerald-200"
+        [disabled]="!selectedDates.length || submitting"
+        (click)="submit()"
+      >
+        {{ submitting ? 'Đang xử lý...' : 'Đăng ký lịch nghỉ' }}
+      </button>
+    </div>
+  </section>
+</ng-container>
+
+<app-confirm-registration-modal
+  [open]="confirmOpen"
+  [warnings]="warnings"
+  [teamleadRequired]="teamleadRequired"
+  [submitting]="submitting"
+  (cancelled)="closeConfirm()"
+  (confirmed)="doSubmit()"
+/>

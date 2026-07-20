@@ -1,0 +1,29 @@
+<div *ngIf="open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+  <section class="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
+    <header class="border-b border-amber-200 bg-amber-100 p-5">
+      <h3 class="font-bold text-amber-900">Xác nhận đăng ký vượt quy định</h3>
+      <p class="mt-1 text-sm text-amber-800">Một số ngày có thể cần Team Lead duyệt.</p>
+    </header>
+
+    <div class="p-5">
+      <div *ngFor="let warning of warnings" class="mb-2 rounded-lg border-l-4 border-amber-400 bg-amber-50 p-3 text-sm text-amber-900">
+        {{ warning }}
+      </div>
+
+      <div *ngIf="teamleadRequired" class="my-3 rounded-lg border-l-4 border-blue-500 bg-blue-100 p-3 text-sm text-blue-900">
+        Một hoặc nhiều ngày bạn chọn cần được Team Lead duyệt.
+      </div>
+
+      <p class="mt-4 text-sm font-semibold">Bạn có chắc chắn muốn tiếp tục không?</p>
+
+      <div class="mt-4 flex gap-2">
+        <button type="button" class="flex-1 rounded-lg bg-slate-200 px-4 py-3 font-bold" [disabled]="submitting" (click)="cancelled.emit()">
+          Hủy, chỉnh lại
+        </button>
+        <button type="button" class="flex-1 rounded-lg bg-red-600 px-4 py-3 font-bold text-white disabled:bg-red-300" [disabled]="submitting" (click)="confirmed.emit()">
+          {{ submitting ? 'Đang gửi...' : 'Vẫn xác nhận & gửi' }}
+        </button>
+      </div>
+    </div>
+  </section>
+</div>
