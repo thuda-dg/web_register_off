@@ -1,7 +1,8 @@
 const express = require('express');
 
 const {
-  bootstrap
+  bootstrap,
+  validate
 } = require(
   '../controllers/registration.controller'
 );
@@ -14,10 +15,18 @@ const {
 
 const router = express.Router();
 
+// Lấy dữ liệu ban đầu cho màn hình đăng ký
 router.get(
   '/bootstrap',
   mockUser,
   bootstrap
+);
+
+// Kiểm tra danh sách đăng ký trước khi lưu
+router.post(
+  '/validate',
+  mockUser,
+  validate
 );
 
 module.exports = router;
