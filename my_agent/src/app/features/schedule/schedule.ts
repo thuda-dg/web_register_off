@@ -14,6 +14,8 @@ import { SelectedDateList } from './components/selected-date-list/selected-date-
 import { ConfirmRegistrationModal } from './components/confirm-registration-modal/confirm-registration-modal';
 import { ClosedBanner } from './components/closed-banner/closed-banner';
 import { DoneBanner } from './components/done-banner/done-banner';
+import { RegistrationService } from '../../core/services/registration.service';
+import { BootstrapData, RegistrationEntryRequest } from '../../core/models/registration.model';
 
 @Component({
   selector: 'app-schedule',
@@ -30,6 +32,8 @@ import { DoneBanner } from './components/done-banner/done-banner';
 })
 export class Schedule implements OnChanges {
   private readonly api = inject(WfmApiService);
+  private readonly registrationService =
+  inject(RegistrationService);
 
   @Input({ required: true }) employee!: Employee;
   @Input({ required: true }) calRange!: CalendarRange;
@@ -64,6 +68,7 @@ export class Schedule implements OnChanges {
   initialized = false;
   errorMessage = '';
   successMessage = '';
+  bootstrapData: BootstrapData | null = null;
 
   ngOnChanges(changes: SimpleChanges): void {
     if (!this.employee || !this.calRange?.startDate) return;
@@ -117,11 +122,12 @@ export class Schedule implements OnChanges {
     this.viewMonth = start.getMonth();
     this.renderCalendar();
 
-    this.api.checkAlreadySubmitted(this.employee.eid, this.calRange.payMonthKey).subscribe(result => {
-      this.doneEntries = result?.entries || [];
-      this.offSubmitDone = !!result?.hasOff || this.doneEntries.some((entry: any) => entry.type === 'OFF');
-    });
+    // this.api.checkAlreadySubmitted(this.employee.eid, this.calRange.payMonthKey).subscribe(result => {
+    //   this.doneEntries = result?.entries || [];
+    //   this.offSubmitDone = !!result?.hasOff || this.doneEntries.some((entry: any) => entry.type === 'OFF');
+    // });
     this.loadSlotStatus();
+    this.loadRegistrationBootstrap();
   }
 
   setMonth(value: string): void {
@@ -185,54 +191,210 @@ export class Schedule implements OnChanges {
   }
 
   submit(): void {
-    this.clearMessages();
-    const entries = this.selectedDates.map(date => this.entryByDate[date]);
-    if (!entries.length) return this.showError('Vui lòng chọn ít nhất 1 ngày.');
-    if (entries.some(entry => !entry?.type)) return this.showError('Vui lòng chọn loại nghỉ cho tất cả các ngày.');
-    if (entries.some(entry => this.typeNeedsReason(entry.type) && !entry.reason)) {
-      return this.showError('Loại A hoặc A/2 bắt buộc phải chọn lý do.');
-    }
+  this.clearMessages();
 
-    this.submitting = true;
-    this.api.validateEntries({ eid: this.employee.eid, entries }).subscribe({
-      next: result => {
-        this.submitting = false;
-        if (!result?.ok) return this.showError(result?.msg || 'Dữ liệu đăng ký không hợp lệ.');
-        this.pendingEntries = entries;
-        this.warnings = result.warnings || [];
-        this.teamleadRequired = !!result.teamleadRequired;
-        if (this.warnings.length) this.confirmOpen = true;
-        else this.doSubmit();
-      },
-      error: () => {
-        this.submitting = false;
-        this.showError('Không thể kiểm tra đăng ký.');
-      },
-    });
+  const localEntries =
+    this.selectedDates.map(
+      date => this.entryByDate[date]
+    );
+
+  if (!localEntries.length) {
+    this.showError(
+      'Vui lòng chọn ít nhất 1 ngày.'
+    );
+
+    return;
   }
 
+  if (
+    localEntries.some(
+      entry => !entry?.type
+    )
+  ) {
+    this.showError(
+      'Vui lòng chọn loại nghỉ cho tất cả các ngày.'
+    );
+
+    return;
+  }
+
+  if (
+    localEntries.some(
+      entry =>
+        this.typeNeedsReason(entry.type) &&
+        !entry.reason
+    )
+  ) {
+    this.showError(
+      'Loại A hoặc A/2 bắt buộc phải chọn lý do.'
+    );
+
+    return;
+  }
+
+  if (!this.bootstrapData) {
+    this.showError(
+      'Dữ liệu đăng ký chưa tải xong. Vui lòng thử lại.'
+    );
+
+    return;
+  }
+
+  const entries =
+    this.buildRegistrationPayload();
+
+  const missingReasonId =
+    entries.some(entry =>
+      this.typeNeedsReason(
+        entry.leaveTypeCode
+      ) &&
+      !entry.reasonId
+    );
+
+  if (missingReasonId) {
+    this.showError(
+      'Không xác định được lý do nghỉ. Vui lòng chọn lại lý do.'
+    );
+
+    return;
+  }
+
+  this.submitting = true;
+
+  this.registrationService
+    .validateRegistration({
+      cycleId:
+        this.bootstrapData.cycle.cycleId,
+
+      entries
+    })
+    .subscribe({
+      next: response => {
+        this.submitting = false;
+
+        if (!response.valid) {
+          this.showValidationErrors(
+            response.errors
+          );
+
+          return;
+        }
+
+        this.pendingEntries =
+          localEntries;
+
+        this.warnings = [];
+        this.teamleadRequired = true;
+
+        this.confirmOpen = true;
+      },
+
+      error: error => {
+        this.submitting = false;
+
+        const validationErrors =
+          error.error?.errors;
+
+        if (
+          Array.isArray(validationErrors) &&
+          validationErrors.length
+        ) {
+          this.showValidationErrors(
+            validationErrors
+          );
+
+          return;
+        }
+
+        this.showError(
+          error.error?.message ||
+          'Không thể kiểm tra đăng ký.'
+        );
+      }
+    });
+}
+
   doSubmit(): void {
-    this.submitting = true;
-    this.api.submitRegistration({ eid: this.employee.eid, entries: this.pendingEntries }).subscribe({
-      next: result => {
+  if (!this.bootstrapData) {
+    this.showError(
+      'Dữ liệu kỳ đăng ký chưa sẵn sàng.'
+    );
+
+    return;
+  }
+
+  const entries =
+    this.buildRegistrationPayload();
+
+  this.submitting = true;
+
+  this.registrationService
+    .submitRegistration({
+      cycleId:
+        this.bootstrapData.cycle.cycleId,
+
+      entries
+    })
+    .subscribe({
+      next: response => {
         this.submitting = false;
         this.confirmOpen = false;
-        if (!result?.ok) return this.showError(result?.msg || 'Đăng ký thất bại.');
-        this.successMessage = `Đăng ký thành công ${this.pendingEntries.length} ngày. Yêu cầu đang chờ Team Lead duyệt.`;
-        this.offSubmitDone = true;
-        this.doneEntries = [...this.doneEntries, ...(result.rows || [])];
+
+        this.successMessage =
+          `Đăng ký thành công ${response.data.entryCount} ngày. ` +
+          'Yêu cầu đang chờ Team Lead duyệt.';
+
+        this.doneEntries = [
+          ...this.doneEntries,
+          ...response.data.entries
+        ];
+
+        const submittedOff =
+          entries.some(
+            entry =>
+              entry.leaveTypeCode ===
+              'OFF'
+          );
+
+        if (submittedOff) {
+          this.offSubmitDone = true;
+        }
+
         this.selectedDates = [];
         this.entryByDate = {};
         this.pendingEntries = [];
+
+        this.renderCalendar();
         this.loadSlotStatus();
+
+        this.loadRegistrationBootstrap();
       },
-      error: () => {
+
+      error: error => {
         this.submitting = false;
         this.confirmOpen = false;
-        this.showError('Không thể gửi đăng ký.');
-      },
+
+        const validationErrors =
+          error.error?.errors;
+
+        if (
+          Array.isArray(validationErrors) &&
+          validationErrors.length
+        ) {
+          this.showValidationErrors(
+            validationErrors
+          );
+
+          return;
+        }
+
+        this.showError(
+          error.error?.message ||
+          'Không thể gửi đăng ký.'
+        );
+      }
     });
-  }
+}
 
   closeConfirm(): void {
     if (this.submitting) return;
@@ -248,6 +410,86 @@ export class Schedule implements OnChanges {
     });
   }
 
+  private loadRegistrationBootstrap(): void {
+  this.registrationService
+    .getBootstrap(2)
+    .subscribe({
+      next: response => {
+        this.bootstrapData =
+          response.data;
+
+        console.log(
+          'Registration bootstrap:',
+          response.data
+        );
+      },
+
+      error: error => {
+        console.error(
+          'Registration bootstrap error:',
+          error
+        );
+
+        this.showError(
+          error.error?.message ||
+          'Không thể tải dữ liệu đăng ký từ backend.'
+        );
+      }
+    });
+}
+
+private buildRegistrationPayload():
+  RegistrationEntryRequest[] {
+  return this.selectedDates.map(date => {
+    const currentEntry =
+      this.entryByDate[date];
+
+    return {
+      leaveDate: date,
+
+      leaveTypeCode:
+        currentEntry.type,
+
+      reasonId:
+        this.findReasonId(
+          currentEntry.type,
+          currentEntry.reason
+        )
+    };
+  });
+}
+
+private findReasonId(
+  leaveTypeCode: string,
+  selectedReason: string
+): number | null {
+  if (!selectedReason) {
+    return null;
+  }
+
+  const leaveType =
+    this.bootstrapData?.leaveTypes.find(
+      item =>
+        item.leaveTypeCode ===
+        leaveTypeCode
+    );
+
+  if (!leaveType) {
+    return null;
+  }
+
+  const reason =
+    leaveType.reasons.find(
+      item =>
+        item.reasonName ===
+          selectedReason ||
+        String(item.reasonId) ===
+          String(selectedReason)
+    );
+
+  return reason?.reasonId ?? null;
+}
+
   private typeNeedsReason(type: string): boolean {
     return !!this.allTypes.find(item => item.value === type)?.needReason;
   }
@@ -260,6 +502,34 @@ export class Schedule implements OnChanges {
   private showError(message: string): void {
     this.errorMessage = message;
   }
+
+  private showValidationErrors(
+  errors: Array<{
+    code?: string;
+    message?: string;
+    leaveDate?: string;
+  }>
+): void {
+  if (!errors?.length) {
+    this.showError(
+      'Dữ liệu đăng ký không hợp lệ.'
+    );
+
+    return;
+  }
+
+  this.errorMessage =
+    errors
+      .map(error => {
+        if (error.message) {
+          return error.message;
+        }
+
+        return error.code ||
+          'Dữ liệu không hợp lệ.';
+      })
+      .join(' ');
+}
 
   fmt(date: string): string {
     const [year, month, day] = date.split('-');

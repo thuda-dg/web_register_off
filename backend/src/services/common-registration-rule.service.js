@@ -2,7 +2,9 @@ const { Op } = require('sequelize');
 
 const {
   RegistrationEntry,
-  RegistrationSubmission
+  RegistrationSubmission,
+  RegistrationCycle,
+   LeaveType
 } = require('../models');
 
 const {
@@ -235,9 +237,172 @@ async function validateDuplicateDatesInDatabase({
   return errors;
 }
 
+async function validateCycleAvailability({
+  cycleId,
+  transaction = null
+}) {
+  const errors = [];
+
+  // Kiểm tra cycleId
+  if (
+    !Number.isInteger(Number(cycleId)) ||
+    Number(cycleId) <= 0
+  ) {
+    return [
+      {
+        code: 'INVALID_CYCLE_ID',
+        message: 'cycleId không hợp lệ.'
+      }
+    ];
+  }
+
+  // Lấy thông tin kỳ đăng ký
+  const cycle = await RegistrationCycle.findOne({
+    where: {
+      cycle_id: Number(cycleId)
+    },
+    transaction
+  });
+
+  if (!cycle) {
+    return [
+      {
+        code: 'CYCLE_NOT_FOUND',
+        message: 'Không tìm thấy kỳ đăng ký.'
+      }
+    ];
+  }
+
+  if (cycle.status !== 'OPEN') {
+    errors.push({
+      code: 'REGISTRATION_CYCLE_NOT_OPEN',
+      cycleId: Number(cycle.cycle_id),
+      status: cycle.status,
+      message: 'Kỳ đăng ký hiện không ở trạng thái mở.'
+    });
+
+    return errors;
+  }
+
+  const currentTime = new Date();
+
+  const openTime = new Date(
+    cycle.registration_open_time
+  );
+
+  const closingTime = new Date(
+    cycle.registration_closing_time
+  );
+
+  if (currentTime < openTime) {
+    errors.push({
+      code: 'REGISTRATION_NOT_STARTED',
+      cycleId: Number(cycle.cycle_id),
+      registrationOpenTime:
+        cycle.registration_open_time,
+      message: 'Chưa đến thời gian mở đăng ký.'
+    });
+  }
+
+  if (currentTime > closingTime) {
+    errors.push({
+      code: 'REGISTRATION_CLOSED',
+      cycleId: Number(cycle.cycle_id),
+      registrationClosingTime:
+        cycle.registration_closing_time,
+      message: 'Thời gian đăng ký đã kết thúc.'
+    });
+  }
+
+  return errors;
+}
+
+async function validateSupportedLeaveTypes({
+  entries,
+  transaction = null
+}) {
+  const errors = [];
+
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return errors;
+  }
+
+  // Lấy các mã loại nghỉ hợp lệ trong request
+  const requestedCodes = [
+    ...new Set(
+      entries
+        .map((entry) => entry?.leaveTypeCode)
+        .filter(
+          (leaveTypeCode) =>
+            typeof leaveTypeCode === 'string' &&
+            leaveTypeCode.trim() !== ''
+        )
+        .map((leaveTypeCode) =>
+          leaveTypeCode.trim()
+        )
+    )
+  ];
+
+  if (requestedCodes.length === 0) {
+    return errors;
+  }
+
+  // Lấy các loại nghỉ có trong database
+  const leaveTypes = await LeaveType.findAll({
+    where: {
+      leave_type_code: requestedCodes
+    },
+    attributes: [
+      'leave_type_code',
+      'leave_type_name',
+      'is_active'
+    ],
+    transaction
+  });
+
+  const leaveTypeMap = new Map();
+
+  for (const leaveType of leaveTypes) {
+    leaveTypeMap.set(
+      leaveType.leave_type_code,
+      leaveType
+    );
+  }
+
+  // Kiểm tra từng loại nghỉ trong request
+  for (const leaveTypeCode of requestedCodes) {
+    const leaveType =
+      leaveTypeMap.get(leaveTypeCode);
+
+    if (!leaveType) {
+      errors.push({
+        code: 'LEAVE_TYPE_NOT_FOUND',
+        leaveTypeCode,
+        message:
+          `Không tìm thấy loại nghỉ ${leaveTypeCode}.`
+      });
+
+      continue;
+    }
+
+    if (!leaveType.is_active) {
+      errors.push({
+        code: 'LEAVE_TYPE_INACTIVE',
+        leaveTypeCode,
+        message:
+          `Loại nghỉ ${leaveTypeCode} đã ngừng hoạt động.`
+      });
+    }
+  }
+
+  return errors;
+}
+
 module.exports = {
   isValidDateFormat,
   validateEntryStructure,
   validateDuplicateDatesInRequest,
-  validateDuplicateDatesInDatabase
+  validateDuplicateDatesInDatabase,
+  validateCycleAvailability,
+  validateSupportedLeaveTypes
 };

@@ -13,6 +13,14 @@ const {
 } = require('./annual-leave-rule.service');
 
 const {
+  validateEntryStructure,
+  validateDuplicateDatesInRequest,
+  validateDuplicateDatesInDatabase,
+  validateCycleAvailability,
+  validateSupportedLeaveTypes
+} = require('./common-registration-rule.service');
+
+const {
   RegistrationCycle
 } = require('../models');
 
@@ -24,25 +32,82 @@ async function validateRegistration({
 }) {
   const errors = [];
 
-  // Lấy kỳ đăng ký để xác định năm tính phép
+  // Kiểm tra cấu trúc request trước
+  const structureErrors =
+    validateEntryStructure({
+      entries
+    });
+
+  errors.push(...structureErrors);
+
+  // Dừng sớm nếu cấu trúc entry không hợp lệ
+  if (structureErrors.length > 0) {
+    return {
+      valid: false,
+      errors
+    };
+  }
+
+  // Kiểm tra trùng ngày trong cùng request
+  const duplicateRequestErrors =
+    validateDuplicateDatesInRequest({
+      entries
+    });
+
+  errors.push(...duplicateRequestErrors);
+
+  // Kiểm tra kỳ đăng ký
+  const cycleErrors =
+    await validateCycleAvailability({
+      cycleId,
+      transaction
+    });
+
+  errors.push(...cycleErrors);
+
+  // Dừng sớm nếu cycle không tồn tại hoặc chưa mở
+  if (cycleErrors.length > 0) {
+    return {
+      valid: false,
+      errors
+    };
+  }
+
+  // Kiểm tra loại nghỉ trong request
+  const leaveTypeErrors =
+    await validateSupportedLeaveTypes({
+      entries,
+      transaction
+    });
+
+  errors.push(...leaveTypeErrors);
+
+  // Dừng sớm nếu có loại nghỉ không hợp lệ
+  if (leaveTypeErrors.length > 0) {
+    return {
+      valid: false,
+      errors
+    };
+  }
+
+  // Kiểm tra ngày đã tồn tại trong database
+  const duplicateDatabaseErrors =
+    await validateDuplicateDatesInDatabase({
+      empId,
+      cycleId,
+      entries,
+      transaction
+    });
+
+  errors.push(...duplicateDatabaseErrors);
+
+  // Lấy kỳ để xác định năm tính AL
   const cycle = await RegistrationCycle.findOne({
     where: {
       cycle_id: cycleId
     },
     transaction
   });
-
-  if (!cycle) {
-    return {
-      valid: false,
-      errors: [
-        {
-          code: 'CYCLE_NOT_FOUND',
-          message: 'Không tìm thấy kỳ đăng ký.'
-        }
-      ]
-    };
-  }
 
   const balanceYear = Number(
     String(cycle.start_date).slice(0, 4)
@@ -88,7 +153,7 @@ async function validateRegistration({
 
   errors.push(...requireHCErrors);
 
-  // Kiểm tra rule nghỉ phép A và A/2
+  // Kiểm tra rule A và A/2
   const annualLeaveTypeErrors =
     await validateAnnualLeaveTypes({
       entries,

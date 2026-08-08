@@ -2,7 +2,8 @@ const express = require('express');
 
 const {
   bootstrap,
-  validate
+  validate,
+  submitRegistrationController
 } = require(
   '../controllers/registration.controller'
 );
@@ -29,4 +30,8 @@ router.post(
   validate
 );
 
+router.post(
+  '/submit',
+  submitRegistrationController
+);
 module.exports = router;
