@@ -3,6 +3,21 @@ const sequelize = require('../config/sequelize');
 const Employee =
   require('./employee.model')(sequelize);
 
+const UserAccount =
+  require('./user-account.model')(sequelize);
+
+const AccountSession =
+  require('./account-session.model')(sequelize);
+
+const RefreshToken =
+  require('./refresh-token.model')(sequelize);
+
+const Role =
+  require('./role.model')(sequelize);
+
+const UserRole =
+  require('./user-role.model')(sequelize);
+
 const Team =
   require('./team.model')(sequelize);
 
@@ -222,9 +237,69 @@ RegistrationAction.belongsTo(RegistrationEntry, {
   as: 'entry'
 });
 
+// Authentication
+Employee.hasOne(UserAccount, {
+  foreignKey: 'emp_id',
+  as: 'userAccount'
+});
+
+UserAccount.belongsTo(Employee, {
+  foreignKey: 'emp_id',
+  as: 'employee'
+});
+
+UserAccount.hasMany(AccountSession, {
+  foreignKey: 'user_account_id',
+  as: 'sessions'
+});
+
+AccountSession.belongsTo(UserAccount, {
+  foreignKey: 'user_account_id',
+  as: 'userAccount'
+});
+
+UserAccount.hasMany(RefreshToken, {
+  foreignKey: 'user_id',
+  as: 'refreshTokens'
+});
+
+RefreshToken.belongsTo(UserAccount, {
+  foreignKey: 'user_id',
+  as: 'userAccount'
+});
+
+UserAccount.belongsToMany(Role, {
+  through: UserRole,
+  foreignKey: 'user_account_id',
+  otherKey: 'role_id',
+  as: 'roles'
+});
+
+Role.belongsToMany(UserAccount, {
+  through: UserRole,
+  foreignKey: 'role_id',
+  otherKey: 'user_account_id',
+  as: 'userAccounts'
+});
+
+UserRole.belongsTo(UserAccount, {
+  foreignKey: 'user_account_id',
+  as: 'userAccount'
+});
+
+UserRole.belongsTo(Role, {
+  foreignKey: 'role_id',
+  as: 'role'
+});
+
 module.exports = {
   sequelize,
   Employee,
+  UserAccount,
+  AccountSession,
+  RefreshToken,
+  Role,
+  UserRole,
   Team,
   Task,
   EmpTeamHistory,
