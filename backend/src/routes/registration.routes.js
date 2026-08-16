@@ -9,29 +9,52 @@ const {
 );
 
 const {
-  mockUser
+  authMiddleware
 } = require(
-  '../middleware/mock-user.middleware'
+  '../middleware/auth.middleware'
 );
 
-const router = express.Router();
 
-// Lấy dữ liệu ban đầu cho màn hình đăng ký
+const router =
+  express.Router();
+
+
+// =========================================================
+// GET BOOTSTRAP
+// =========================================================
+
+// Lấy dữ liệu ban đầu
+// cho màn hình đăng ký
 router.get(
   '/bootstrap',
-  mockUser,
+  authMiddleware,
   bootstrap
 );
 
-// Kiểm tra danh sách đăng ký trước khi lưu
+
+// =========================================================
+// VALIDATE
+// =========================================================
+
+// Kiểm tra danh sách đăng ký
+// trước khi lưu
 router.post(
   '/validate',
-  mockUser,
+  authMiddleware,
   validate
 );
 
+
+// =========================================================
+// SUBMIT
+// =========================================================
+
+// Lưu đăng ký
 router.post(
   '/submit',
+  authMiddleware,
   submitRegistrationController
 );
+
+
 module.exports = router;

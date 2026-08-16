@@ -1,40 +1,89 @@
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+
 require('dotenv').config();
 
-const ACCESS_TOKEN_TTL_SECONDS = Number(process.env.ACCESS_TOKEN_TTL_SECONDS || 900);
-const REFRESH_TOKEN_TTL_SECONDS = Number(process.env.REFRESH_TOKEN_TTL_SECONDS || 2592000);
-const TOKEN_SECRET = process.env.AUTH_TOKEN_SECRET || 'change-me-in-production';
+
+const ACCESS_TOKEN_TTL_SECONDS =
+  Number(
+    process.env.ACCESS_TOKEN_TTL_SECONDS ||
+    900
+  );
+
+const REFRESH_TOKEN_TTL_SECONDS =
+  Number(
+    process.env.REFRESH_TOKEN_TTL_SECONDS ||
+    2592000
+  );
+
+const TOKEN_SECRET =
+  process.env.AUTH_TOKEN_SECRET;
+
+
+if (!TOKEN_SECRET) {
+  throw new Error(
+    'AUTH_TOKEN_SECRET chưa được cấu hình trong file .env.'
+  );
+}
+
 
 function createRandomToken(bytes = 32) {
-  return crypto.randomBytes(bytes).toString('hex');
+  return crypto
+    .randomBytes(bytes)
+    .toString('hex');
 }
+
 
 function hashToken(token) {
-  return crypto.createHash('sha256').update(token).digest('hex');
+  return crypto
+    .createHash('sha256')
+    .update(token)
+    .digest('hex');
 }
+
 
 function hashPassword(password) {
-  return bcrypt.hashSync(password, 10);
+  return bcrypt.hashSync(
+    password,
+    10
+  );
 }
 
-function verifyPassword(password, storedHash) {
-  if (!storedHash || typeof storedHash !== 'string') {
+
+function verifyPassword(
+  password,
+  storedHash
+) {
+  if (
+    !storedHash ||
+    typeof storedHash !== 'string'
+  ) {
     return false;
   }
 
-  return bcrypt.compareSync(password, storedHash);
+  return bcrypt.compareSync(
+    password,
+    storedHash
+  );
 }
 
+
 function createAccessToken(payload) {
-  const expiresAt = new Date(Date.now() + ACCESS_TOKEN_TTL_SECONDS * 1000);
+  const expiresAt =
+    new Date(
+      Date.now() +
+      ACCESS_TOKEN_TTL_SECONDS * 1000
+    );
+
   const token = jwt.sign(
+    payload,
+    TOKEN_SECRET,
     {
-      ...payload,
-      exp: Math.floor(expiresAt.getTime() / 1000)
-    },
-    TOKEN_SECRET
+      algorithm: 'HS256',
+      expiresIn:
+        ACCESS_TOKEN_TTL_SECONDS
+    }
   );
 
   return {
@@ -43,25 +92,38 @@ function createAccessToken(payload) {
   };
 }
 
+
 function decodeAccessToken(token) {
-  if (!token || typeof token !== 'string') {
+  if (
+    !token ||
+    typeof token !== 'string'
+  ) {
     return null;
   }
 
   try {
-    return jwt.verify(token, TOKEN_SECRET);
+    return jwt.verify(
+      token,
+      TOKEN_SECRET,
+      {
+        algorithms: ['HS256']
+      }
+    );
   } catch (error) {
     return null;
   }
 }
 
+
 function getAccessTokenTtlSeconds() {
   return ACCESS_TOKEN_TTL_SECONDS;
 }
 
+
 function getRefreshTokenTtlSeconds() {
   return REFRESH_TOKEN_TTL_SECONDS;
 }
+
 
 module.exports = {
   createRandomToken,

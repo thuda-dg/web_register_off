@@ -38,7 +38,8 @@ module.exports = function defineUserRole(sequelize) {
       }
     },
     {
-      tableName: 'user_roles'
+      tableName: 'user_roles',
+      timestamps: false
     }
   );
 };

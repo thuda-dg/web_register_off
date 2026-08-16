@@ -67,16 +67,24 @@ export class LoginComponent {
     this.errorMessage = '';
 
     this.authService.login(this.form.value).subscribe({
-      next: () => {
-        this.router.navigate(['/']);
-      },
-      error: (error) => {
-        this.loading = false;
-        this.errorMessage = error?.error?.message || 'Đăng nhập thất bại.';
-      },
-      complete: () => {
-        this.loading = false;
-      }
-    });
+  next: () => {
+    this.router.navigate(['/schedule']);
+  },
+
+ error: (error) => {
+  console.log('========== LOGIN ERROR ==========');
+  console.log('STATUS:', error?.status);
+  console.log('ERROR BODY:', error?.error);
+
+  this.loading = false;
+  this.errorMessage = error?.error?.message || 'Đăng nhập thất bại.';
+
+  console.log('errorMessage =', this.errorMessage);
+},
+
+  complete: () => {
+    this.loading = false;
+  }
+});
   }
 }
