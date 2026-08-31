@@ -16,17 +16,18 @@ const {
   '../services/registration-submit.service'
 );
 
+const {
+  getMyRegistrationEntries
+} = require(
+  '../services/registration-history.service'
+);
 
-// =========================================================
-// HELPER
-// =========================================================
-
+// Lấy empId từ user đã đăng nhập
 function getAuthenticatedEmpId(req) {
   const empId =
     Number(
       req.user?.empId
     );
-
 
   if (
     !Number.isInteger(empId) ||
@@ -44,66 +45,40 @@ function getAuthenticatedEmpId(req) {
     throw error;
   }
 
-
   return empId;
 }
 
-
-// =========================================================
-// BOOTSTRAP
-// =========================================================
-
-async function bootstrap(req, res, next) {
+// Lấy dữ liệu ban đầu cho màn hình đăng ký
+async function bootstrap(
+  req,
+  res,
+  next
+) {
   try {
-    console.log(
-      '===== REGISTRATION AUTH DEBUG ====='
-    );
-
-    console.log(
-      'req.user:',
-      req.user
-    );
-
-    console.log(
-      'req.user.empId:',
-      req.user?.empId
-    );
-
-    console.log(
-      'req.user.sub:',
-      req.user?.sub
-    );
-
     const empId =
       getAuthenticatedEmpId(req);
-
-    console.log(
-      'Final empId:',
-      empId
-    );
 
     const data =
       await getRegistrationBootstrap(
         empId
       );
 
-    return res.status(200).json({
-      ok: true,
-      message:
-        'Lấy dữ liệu đăng ký thành công.',
-      data
-    });
+    return res
+      .status(200)
+      .json({
+        ok: true,
 
+        message:
+          'Lấy dữ liệu đăng ký thành công.',
+
+        data
+      });
   } catch (error) {
     next(error);
   }
 }
 
-
-// =========================================================
-// VALIDATE
-// =========================================================
-
+// Kiểm tra đăng ký trước khi lưu
 async function validate(
   req,
   res,
@@ -113,12 +88,10 @@ async function validate(
     const empId =
       getAuthenticatedEmpId(req);
 
-
     const {
       cycleId,
       entries
     } = req.body;
-
 
     if (
       !Number.isInteger(
@@ -136,7 +109,6 @@ async function validate(
         });
     }
 
-
     if (
       !Array.isArray(entries)
     ) {
@@ -149,7 +121,6 @@ async function validate(
             'entries phải là một mảng.'
         });
     }
-
 
     if (
       entries.length === 0
@@ -164,7 +135,6 @@ async function validate(
         });
     }
 
-
     const result =
       await validateRegistration({
         empId,
@@ -174,7 +144,6 @@ async function validate(
 
         entries
       });
-
 
     return res
       .status(200)
@@ -187,38 +156,24 @@ async function validate(
         errors:
           result.errors
       });
-
   } catch (error) {
-
     next(error);
   }
 }
 
-
-// =========================================================
-// SUBMIT
-// =========================================================
-
+// Lưu đăng ký
 async function submitRegistrationController(
   req,
   res
 ) {
   try {
-    /*
-     * Không lấy X-Emp-Id nữa.
-     *
-     * empId lấy trực tiếp từ JWT
-     * đã được authMiddleware verify.
-     */
     const empId =
       getAuthenticatedEmpId(req);
-
 
     const {
       cycleId,
       entries
     } = req.body;
-
 
     if (
       !Number.isInteger(
@@ -239,7 +194,6 @@ async function submitRegistrationController(
         });
     }
 
-
     if (
       !Array.isArray(entries) ||
       entries.length === 0
@@ -257,7 +211,6 @@ async function submitRegistrationController(
         });
     }
 
-
     const result =
       await submitRegistration({
         empId,
@@ -267,7 +220,6 @@ async function submitRegistrationController(
 
         entries
       });
-
 
     return res
       .status(201)
@@ -280,9 +232,7 @@ async function submitRegistrationController(
         data:
           result
       });
-
   } catch (error) {
-
     if (
       error.code ===
       'REGISTRATION_VALIDATION_FAILED'
@@ -307,12 +257,10 @@ async function submitRegistrationController(
         });
     }
 
-
     console.error(
       'Submit registration error:',
       error
     );
-
 
     return res
       .status(
@@ -334,9 +282,83 @@ async function submitRegistrationController(
   }
 }
 
+// Lấy lịch đăng ký của user hiện tại
+async function getMyRegistrationEntriesController(
+  req,
+  res
+) {
+  try {
+    const empId =
+      getAuthenticatedEmpId(req);
+
+    const cycleId =
+      Number(
+        req.query.cycleId
+      );
+
+    if (
+      !Number.isInteger(cycleId) ||
+      cycleId <= 0
+    ) {
+      return res
+        .status(400)
+        .json({
+          ok: false,
+
+          code:
+            'INVALID_CYCLE_ID',
+
+          message:
+            'cycleId không hợp lệ.'
+        });
+    }
+
+    const result =
+      await getMyRegistrationEntries({
+        empId,
+        cycleId
+      });
+
+    return res
+      .status(200)
+      .json({
+        ok: true,
+
+        message:
+          'Lấy lịch sử đăng ký thành công.',
+
+        data:
+          result
+      });
+  } catch (error) {
+    console.error(
+      'Get registration history error:',
+      error
+    );
+
+    return res
+      .status(
+        error.statusCode ||
+        500
+      )
+      .json({
+        ok: false,
+
+        code:
+          error.code ||
+          'INTERNAL_SERVER_ERROR',
+
+        message:
+          error.statusCode
+            ? error.message
+            : 'Có lỗi xảy ra khi lấy lịch sử đăng ký.'
+      });
+  }
+}
 
 module.exports = {
   bootstrap,
   validate,
-  submitRegistrationController
+  submitRegistrationController,
+  getMyRegistrationEntriesController
 };

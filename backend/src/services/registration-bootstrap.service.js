@@ -9,12 +9,13 @@ const {
   EmpTaskHistory,
   LeaveType,
   RegistrationCycle,
-  EmpAnnualLeave,
-  EmployeeCycleOff,
-  RequireHC
+  RequireHC,
+  RegistrationEntry,
+  RegistrationSubmission
 } = require('../models');
 
 const {
+  ACTIVE_BALANCE_STATUSES,
   getAnnualLeaveBalance,
   getOffBalance
 } = require('./leave-balance.service');
@@ -62,13 +63,30 @@ async function getRegistrationBootstrap(empId) {
     throw error;
   }
 
+  // Lấy thời gian hiện tại
+  const currentTime = new Date();
+
+  // Lấy kỳ có thời gian mở đăng ký tiếp theo
+  const nextCycle = await RegistrationCycle.findOne({
+    where: {
+      registration_open_time: {
+        [Op.gt]: currentTime
+      }
+    },
+    order: [
+      ['registration_open_time', 'ASC']
+    ]
+  });
+
   // Lấy team của nhân viên tại ngày bắt đầu kỳ
   const teamHistory = await EmpTeamHistory.findOne({
     where: {
       emp_id: empId,
+
       start_date: {
         [Op.lte]: cycle.start_date
       },
+
       [Op.or]: [
         {
           end_date: null
@@ -80,6 +98,7 @@ async function getRegistrationBootstrap(empId) {
         }
       ]
     },
+
     include: [
       {
         model: Team,
@@ -91,40 +110,7 @@ async function getRegistrationBootstrap(empId) {
         ]
       }
     ],
-    order: [
-      ['start_date', 'DESC']
-    ]
-  });
 
-  // Lấy task của nhân viên tại ngày bắt đầu kỳ
-  const taskHistory = await EmpTaskHistory.findOne({
-    where: {
-      emp_id: empId,
-      start_date: {
-        [Op.lte]: cycle.start_date
-      },
-      [Op.or]: [
-        {
-          end_date: null
-        },
-        {
-          end_date: {
-            [Op.gte]: cycle.start_date
-          }
-        }
-      ]
-    },
-    include: [
-      {
-        model: Task,
-        as: 'task',
-        attributes: [
-          'task_id',
-          'task_code',
-          'task_name'
-        ]
-      }
-    ],
     order: [
       ['start_date', 'DESC']
     ]
@@ -138,6 +124,44 @@ async function getRegistrationBootstrap(empId) {
     error.statusCode = 400;
     throw error;
   }
+
+  // Lấy task của nhân viên tại ngày bắt đầu kỳ
+  const taskHistory = await EmpTaskHistory.findOne({
+    where: {
+      emp_id: empId,
+
+      start_date: {
+        [Op.lte]: cycle.start_date
+      },
+
+      [Op.or]: [
+        {
+          end_date: null
+        },
+        {
+          end_date: {
+            [Op.gte]: cycle.start_date
+          }
+        }
+      ]
+    },
+
+    include: [
+      {
+        model: Task,
+        as: 'task',
+        attributes: [
+          'task_id',
+          'task_code',
+          'task_name'
+        ]
+      }
+    ],
+
+    order: [
+      ['start_date', 'DESC']
+    ]
+  });
 
   if (!taskHistory || !taskHistory.task) {
     const error = new Error(
@@ -153,6 +177,7 @@ async function getRegistrationBootstrap(empId) {
     where: {
       is_active: true
     },
+
     attributes: [
       'leave_type_id',
       'leave_type_code',
@@ -161,10 +186,26 @@ async function getRegistrationBootstrap(empId) {
       'deduction_source',
       'deduction_quantity'
     ],
+
     order: [
       ['leave_type_id', 'ASC']
     ]
   });
+
+  // Lấy loại nghỉ OFF
+  const offLeaveType = leaveTypes.find(
+    (leaveType) =>
+      leaveType.leave_type_code === 'OFF'
+  );
+
+  if (!offLeaveType) {
+    const error = new Error(
+      'Không tìm thấy loại nghỉ OFF trong hệ thống.'
+    );
+
+    error.statusCode = 500;
+    throw error;
+  }
 
   // Lấy lý do hợp lệ cho từng loại nghỉ
   const [reasonRows] = await sequelize.query(`
@@ -187,6 +228,7 @@ async function getRegistrationBootstrap(empId) {
       lr.reason_name
   `);
 
+  // Gom lý do theo mã loại nghỉ
   const reasonsByLeaveType = {};
 
   for (const row of reasonRows) {
@@ -201,23 +243,23 @@ async function getRegistrationBootstrap(empId) {
   }
 
   // Xác định năm tính phép
-const balanceYear = Number(
-  String(cycle.start_date).slice(0, 4)
-);
+  const balanceYear = Number(
+    String(cycle.start_date).slice(0, 4)
+  );
 
-// Tính số dư phép năm
-const annualLeaveBalance =
-  await getAnnualLeaveBalance({
-    empId,
-    balanceYear
-  });
+  // Tính số dư phép năm
+  const annualLeaveBalance =
+    await getAnnualLeaveBalance({
+      empId,
+      balanceYear
+    });
 
-// Tính số dư OFF trong kỳ
-const offBalance =
-  await getOffBalance({
-    empId,
-    cycleId: Number(cycle.cycle_id)
-  });
+  // Tính số dư OFF trong kỳ
+  const offBalance =
+    await getOffBalance({
+      empId,
+      cycleId: Number(cycle.cycle_id)
+    });
 
   // Lấy dữ liệu RequireHC theo task
   const requireHC = await RequireHC.findAll({
@@ -225,103 +267,261 @@ const offBalance =
       cycle_id: cycle.cycle_id,
       task_id: taskHistory.task.task_id
     },
+
     attributes: [
       'require_hc_id',
       'working_date',
       'max_off'
     ],
+
     order: [
       ['working_date', 'ASC']
     ]
   });
 
-  const currentTime = new Date();
+  // Đếm số OFF hiện tại theo từng ngày
+  const offCountRows =
+    await RegistrationEntry.findAll({
+      attributes: [
+        'leave_date',
 
+        [
+          sequelize.fn(
+            'COUNT',
+            sequelize.col(
+              'RegistrationEntry.entry_id'
+            )
+          ),
+          'current_off'
+        ]
+      ],
+
+      include: [
+        {
+          model: RegistrationSubmission,
+          as: 'submission',
+
+          attributes: [],
+
+          required: true,
+
+          where: {
+            cycle_id: cycle.cycle_id
+          }
+        }
+      ],
+
+      where: {
+        task_id:
+          taskHistory.task.task_id,
+
+        leave_type_id:
+          offLeaveType.leave_type_id,
+
+        current_status: {
+          [Op.in]:
+            ACTIVE_BALANCE_STATUSES
+        },
+
+        is_active: true
+      },
+
+      group: [
+        'RegistrationEntry.leave_date'
+      ],
+
+      raw: true
+    });
+
+  // Tạo map số OFF hiện tại theo từng ngày
+  const currentOffByDate = {};
+
+  for (const row of offCountRows) {
+    currentOffByDate[
+      String(row.leave_date)
+    ] = Number(row.current_off);
+  }
+
+  // Tính thời gian mở và đóng form
   const openTime =
-    new Date(cycle.registration_open_time);
+    new Date(
+      cycle.registration_open_time
+    );
 
   const closingTime =
-    new Date(cycle.registration_closing_time);
+    new Date(
+      cycle.registration_closing_time
+    );
 
+  // Kiểm tra form hiện tại có đang mở hay không
   const isRegistrationOpen =
     cycle.status === 'OPEN' &&
     currentTime >= openTime &&
     currentTime <= closingTime;
 
+  // Lấy ngày mở đăng ký tiếp theo
+  const nextOpenDate =
+    nextCycle?.registration_open_time
+      ? new Date(
+          nextCycle.registration_open_time
+        )
+      : null;
+
   return {
     employee: {
-      empId: Number(employee.emp_id),
-      empCode: employee.emp_code,
-      empName: employee.emp_name,
-      empEmail: employee.emp_email
+      empId:
+        Number(employee.emp_id),
+
+      empCode:
+        employee.emp_code,
+
+      empName:
+        employee.emp_name,
+
+      empEmail:
+        employee.emp_email
     },
 
     team: {
-      teamId: Number(teamHistory.team.team_id),
-      teamCode: teamHistory.team.team_code,
-      teamName: teamHistory.team.team_name
+      teamId:
+        Number(
+          teamHistory.team.team_id
+        ),
+
+      teamCode:
+        teamHistory.team.team_code,
+
+      teamName:
+        teamHistory.team.team_name
     },
 
     task: {
-      taskId: Number(taskHistory.task.task_id),
-      taskCode: taskHistory.task.task_code,
-      taskName: taskHistory.task.task_name
+      taskId:
+        Number(
+          taskHistory.task.task_id
+        ),
+
+      taskCode:
+        taskHistory.task.task_code,
+
+      taskName:
+        taskHistory.task.task_name
     },
 
     cycle: {
-      cycleId: Number(cycle.cycle_id),
-      cycleCode: cycle.cycle_code,
-      cycleName: cycle.cycle_name,
-      startDate: cycle.start_date,
-      endDate: cycle.end_date,
+      cycleId:
+        Number(cycle.cycle_id),
+
+      cycleCode:
+        cycle.cycle_code,
+
+      cycleName:
+        cycle.cycle_name,
+
+      startDate:
+        cycle.start_date,
+
+      endDate:
+        cycle.end_date,
+
       registrationOpenTime:
         cycle.registration_open_time,
+
       registrationClosingTime:
         cycle.registration_closing_time,
-      status: cycle.status,
-      isRegistrationOpen
+
+      status:
+        cycle.status,
+
+      isRegistrationOpen,
+
+      nextOpenDate:
+        nextOpenDate
+          ? nextOpenDate.toISOString()
+          : null
     },
 
-    leaveTypes: leaveTypes.map((leaveType) => ({
-      leaveTypeId:
-        Number(leaveType.leave_type_id),
+    leaveTypes:
+      leaveTypes.map(
+        (leaveType) => ({
+          leaveTypeId:
+            Number(
+              leaveType.leave_type_id
+            ),
 
-      leaveTypeCode:
-        leaveType.leave_type_code,
+          leaveTypeCode:
+            leaveType.leave_type_code,
 
-      leaveTypeName:
-        leaveType.leave_type_name,
+          leaveTypeName:
+            leaveType.leave_type_name,
 
-      needReason:
-        leaveType.need_reason,
+          needReason:
+            leaveType.need_reason,
 
-      deductionSource:
-        leaveType.deduction_source,
+          deductionSource:
+            leaveType.deduction_source,
 
-      deductionQuantity:
-        Number(leaveType.deduction_quantity),
+          deductionQuantity:
+            Number(
+              leaveType.deduction_quantity
+            ),
 
-      reasons:
-        reasonsByLeaveType[
-          leaveType.leave_type_code
-        ] || []
-    })),
+          reasons:
+            reasonsByLeaveType[
+              leaveType.leave_type_code
+            ] || []
+        })
+      ),
 
     balances: {
-        annualLeave: annualLeaveBalance,
-        off: offBalance
+      annualLeave:
+        annualLeaveBalance,
+
+      off:
+        offBalance
     },
 
-    requireHC: requireHC.map((row) => ({
-      requireHCId:
-        Number(row.require_hc_id),
+    requireHC:
+      requireHC.map((row) => {
+        const workingDate =
+          String(
+            row.working_date
+          );
 
-      workingDate:
-        row.working_date,
+        const maxOff =
+          Number(
+            row.max_off
+          );
 
-      maxOff:
-        Number(row.max_off)
-    }))
+        const currentOff =
+          currentOffByDate[
+            workingDate
+          ] || 0;
+
+        const remaining =
+          Math.max(
+            maxOff - currentOff,
+            0
+          );
+
+        return {
+          requireHCId:
+            Number(
+              row.require_hc_id
+            ),
+
+          workingDate,
+
+          maxOff,
+
+          currentOff,
+
+          remaining,
+
+          full:
+            currentOff >= maxOff
+        };
+      })
   };
 }
 

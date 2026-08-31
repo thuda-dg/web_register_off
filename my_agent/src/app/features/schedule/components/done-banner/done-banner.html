@@ -7,7 +7,41 @@
     <div class="overflow-auto rounded-lg border">
       <table class="w-full min-w-[620px] text-sm">
         <thead class="bg-slate-100 text-slate-500"><tr><th class="p-3 text-left">Ngày</th><th class="p-3">Loại</th><th class="p-3 text-left">Lý do</th><th class="p-3 text-left">Đăng ký lúc</th></tr></thead>
-        <tbody><tr *ngFor="let entry of entries" class="border-t"><td class="p-3">{{ fmt(entry.date) }}</td><td class="p-3 text-center"><span class="rounded-full px-2.5 py-1 text-xs font-bold text-white" [style.background]="color(entry.type)">{{ entry.type }}</span></td><td class="p-3">{{ entry.reason || '—' }}</td><td class="p-3 text-slate-500">{{ entry.submittedAt || '—' }}</td></tr></tbody>
+        <tbody>
+          <tr
+            *ngFor="let entry of entries"
+            class="border-t"
+          >
+            <td class="p-3">
+              {{ fmt(entry.leaveDate) }}
+            </td>
+
+            <td class="p-3 text-center">
+              <span
+                class="rounded-full px-2.5 py-1 text-xs font-bold text-white"
+                [style.background]="color(entry.leaveTypeCode)"
+              >
+                {{ entry.leaveTypeCode }}
+              </span>
+            </td>
+
+            <td class="p-3">
+              {{
+                entry.customReason ||
+                entry.reasonName ||
+                '—'
+              }}
+            </td>
+
+            <td class="p-3 text-slate-500">
+              {{
+                entry.submittedAt
+                  ? (entry.submittedAt | date:'dd/MM/yyyy HH:mm')
+                  : '—'
+              }}
+            </td>
+          </tr>
+        </tbody>
       </table>
     </div>
     <div class="mt-4 rounded-lg border-l-4 border-amber-400 bg-amber-50 p-4 text-sm text-amber-900">Muốn thay đổi lịch, vui lòng liên hệ <strong>Ops Team</strong>.</div>
