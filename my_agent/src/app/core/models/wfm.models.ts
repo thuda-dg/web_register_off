@@ -48,6 +48,8 @@ export interface CalendarCell {
   selected?: boolean;
   today?: boolean;
   full?: boolean;
+  registered?: boolean;
+  registeredStatus?: string;
 }
 
 export interface SlotStatus {

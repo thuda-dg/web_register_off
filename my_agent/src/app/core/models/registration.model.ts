@@ -108,6 +108,7 @@ export interface BootstrapData {
     registrationClosingTime: string;
     status: string;
     isRegistrationOpen: boolean;
+    nextOpenDate: string | null;
   };
 
   leaveTypes: LeaveType[];
@@ -123,14 +124,51 @@ export interface BootstrapData {
   };
 
   requireHC: Array<{
-    requireHCId: number;
-    workingDate: string;
-    maxOff: number;
-  }>;
+  requireHCId: number;
+  workingDate: string;
+  maxOff: number;
+  currentOff: number;
+  remaining: number;
+  full: boolean;
+}>;
 }
 
 export interface BootstrapResponse {
   ok: boolean;
   message: string;
   data: BootstrapData;
+}
+
+export interface MyRegistrationEntry {
+  submissionId: number;
+  submissionCode: string;
+  submittedAt: string;
+
+  entryId: number;
+  registrationCode: string;
+  leaveDate: string;
+
+  leaveTypeId: number;
+  leaveTypeCode: string;
+  leaveTypeName: string;
+  leaveUnits: number;
+
+  reasonId: number | null;
+  customReason: string | null;
+
+  teamId: number;
+  taskId: number;
+
+  currentStatus: string;
+}
+
+export interface MyRegistrationEntriesData {
+  hasOff: boolean;
+  entries: MyRegistrationEntry[];
+}
+
+export interface MyRegistrationEntriesResponse {
+  ok: boolean;
+  message: string;
+  data: MyRegistrationEntriesData;
 }

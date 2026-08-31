@@ -16,7 +16,8 @@ import {
   RegistrationSubmitRequest,
   RegistrationSubmitResponse,
   RegistrationValidateRequest,
-  RegistrationValidateResponse
+  RegistrationValidateResponse,
+  MyRegistrationEntriesResponse
 } from '../models/registration.model';
 
 @Injectable({
@@ -74,4 +75,15 @@ export class RegistrationService {
       }
     );
   }
+
+  getMyEntries(
+  cycleId: number
+): Observable<MyRegistrationEntriesResponse> {
+  return this.http.get<MyRegistrationEntriesResponse>(
+    `${this.apiUrl}/my-entries?cycleId=${cycleId}`,
+    {
+      headers: this.createHeaders()
+    }
+  );
+}
 }

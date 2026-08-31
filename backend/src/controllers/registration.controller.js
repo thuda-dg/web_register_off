@@ -16,6 +16,12 @@ const {
   '../services/registration-submit.service'
 );
 
+const {
+  getMyRegistrationEntries
+} = require(
+  '../services/registration-history.service'
+);
+
 async function bootstrap(req, res, next) {
   try {
     const empId = req.user.empId;
@@ -84,26 +90,9 @@ async function submitRegistrationController(
   res
 ) {
   try {
-    const empId = Number(
-      req.headers['x-emp-id']
-    );
+    const empId = req.user.empId;
+    const {cycleId,entries} = req.body;
 
-    const {
-      cycleId,
-      entries
-    } = req.body;
-
-    if (
-      !Number.isInteger(empId) ||
-      empId <= 0
-    ) {
-      return res.status(400).json({
-        ok: false,
-        code: 'INVALID_EMP_ID',
-        message:
-          'Thiếu hoặc sai X-Emp-Id.'
-      });
-    }
 
     if (
       !Number.isInteger(
@@ -184,8 +173,60 @@ async function submitRegistrationController(
   }
 }
 
+async function getMyRegistrationEntriesController(
+  req,
+  res
+) {
+  try {
+    const empId = req.user.empId;
+
+    const cycleId = Number(
+      req.query.cycleId
+    );
+
+
+    if (
+      !Number.isInteger(cycleId) ||
+      cycleId <= 0
+    ) {
+      return res.status(400).json({
+        ok: false,
+        code: 'INVALID_CYCLE_ID',
+        message:
+          'cycleId không hợp lệ.'
+      });
+    }
+
+    const result =
+      await getMyRegistrationEntries({
+        empId,
+        cycleId
+      });
+
+    return res.status(200).json({
+      ok: true,
+      message:
+        'Lấy lịch sử đăng ký thành công.',
+      data: result
+    });
+  } catch (error) {
+    console.error(
+      'Get registration history error:',
+      error
+    );
+
+    return res.status(500).json({
+      ok: false,
+      code: 'INTERNAL_SERVER_ERROR',
+      message:
+        'Có lỗi xảy ra khi lấy lịch sử đăng ký.'
+    });
+  }
+}
+
 module.exports = {
   bootstrap,
   validate,
-  submitRegistrationController
+  submitRegistrationController,
+  getMyRegistrationEntriesController
 };
