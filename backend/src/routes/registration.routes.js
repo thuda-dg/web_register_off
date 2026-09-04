@@ -3,7 +3,8 @@ const express = require('express');
 const {
   bootstrap,
   validate,
-  submitRegistrationController
+  submitRegistrationController,
+  getMyRegistrationEntriesController
 } = require(
   '../controllers/registration.controller'
 );
@@ -14,47 +15,36 @@ const {
   '../middleware/auth.middleware'
 );
 
-
 const router =
   express.Router();
 
+// Xác thực user cho tất cả API registration
+router.use(
+  authMiddleware
+);
 
-// =========================================================
-// GET BOOTSTRAP
-// =========================================================
-
-// Lấy dữ liệu ban đầu
-// cho màn hình đăng ký
+// Lấy dữ liệu ban đầu cho màn hình đăng ký
 router.get(
   '/bootstrap',
-  authMiddleware,
   bootstrap
 );
 
-
-// =========================================================
-// VALIDATE
-// =========================================================
-
-// Kiểm tra danh sách đăng ký
-// trước khi lưu
+// Kiểm tra đăng ký trước khi lưu
 router.post(
   '/validate',
-  authMiddleware,
   validate
 );
-
-
-// =========================================================
-// SUBMIT
-// =========================================================
 
 // Lưu đăng ký
 router.post(
   '/submit',
-  authMiddleware,
   submitRegistrationController
 );
 
+// Lấy đăng ký của user hiện tại trong một kỳ
+router.get(
+  '/my-entries',
+  getMyRegistrationEntriesController
+);
 
 module.exports = router;

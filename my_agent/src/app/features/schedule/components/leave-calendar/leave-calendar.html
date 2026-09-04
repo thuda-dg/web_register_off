@@ -3,11 +3,8 @@
 
   <div class="mb-4 flex items-center justify-between gap-2">
     <button type="button" class="h-8 w-8 rounded-md border hover:bg-slate-100" (click)="moveMonth.emit(-1)">‹</button>
-    <select
-      class="min-w-0 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-sm"
-      [ngModel]="currentMonthValue"
-      (ngModelChange)="monthValueChange.emit($event)"
-    >
+    <select class="min-w-0 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-sm"
+      [ngModel]="currentMonthValue" (ngModelChange)="monthValueChange.emit($event)">
       <option *ngFor="let item of monthOptions" [value]="item.value">{{ item.label }}</option>
     </select>
     <button type="button" class="h-8 w-8 rounded-md border hover:bg-slate-100" (click)="moveMonth.emit(1)">›</button>
@@ -18,23 +15,66 @@
 
     <ng-container *ngFor="let cell of cells; trackBy: trackCell">
       <div *ngIf="cell.empty" class="h-9"></div>
-      <button
-        *ngIf="!cell.empty"
-        type="button"
-        class="h-9 rounded-md text-sm transition"
-        [class.bg-emerald-500]="cell.selected"
-        [class.text-white]="cell.selected"
-        [class.font-bold]="cell.today"
-        [class.text-emerald-700]="cell.today && !cell.selected"
-        [class.bg-slate-300]="cell.full"
-        [class.text-slate-500]="cell.full"
-        [class.cursor-not-allowed]="!cell.inRange || cell.full"
-        [class.text-slate-300]="!cell.inRange"
-        [class.hover:bg-emerald-100]="cell.inRange && !cell.full && !cell.selected"
-        [disabled]="!cell.inRange || cell.full"
-        [title]="cell.full ? 'Ngày này đã đủ số lượng người nghỉ' : (!cell.inRange ? 'Ngày ngoài kỳ đăng ký' : '')"
-        (click)="dateToggle.emit(cell)"
-      >
+
+      <button *ngIf="!cell.empty" type="button" class="h-9 rounded-md text-sm transition"
+        [class.bg-emerald-500]="cell.selected" [class.text-white]="cell.selected" [class.font-bold]="cell.today"
+        [class.text-emerald-700]="cell.today && !cell.selected" [class.bg-slate-300]="cell.full"
+        [class.text-slate-500]="cell.full" [class.bg-amber-100]="
+  cell.registered &&
+  cell.registeredStatus === 'PENDING_TL'
+" [class.text-amber-700]="
+  cell.registered &&
+  cell.registeredStatus === 'PENDING_TL'
+" [class.bg-blue-100]="
+  cell.registered &&
+  cell.registeredStatus === 'APPROVED'
+" [class.text-blue-700]="
+  cell.registered &&
+  cell.registeredStatus === 'APPROVED'
+" [class.bg-emerald-100]="
+  cell.registered &&
+  cell.registeredStatus === 'PUBLISHED'
+" [class.text-emerald-700]="
+  cell.registered &&
+  cell.registeredStatus === 'PUBLISHED'
+" [class.bg-violet-100]="
+  cell.registered &&
+  cell.registeredStatus === 'UNPUBLISHED'
+" [class.text-violet-700]="
+  cell.registered &&
+  cell.registeredStatus === 'UNPUBLISHED'
+" [class.cursor-not-allowed]="
+          !cell.inRange ||
+          cell.full ||
+          cell.registered
+        " [class.text-slate-300]="!cell.inRange" [class.hover:bg-emerald-100]="
+          cell.inRange &&
+          !cell.full &&
+          !cell.registered &&
+          !cell.selected
+        " [disabled]="
+          !cell.inRange ||
+          cell.full ||
+          cell.registered
+        " [title]="
+  cell.registered
+    ? (
+        cell.registeredStatus === 'PENDING_TL'
+          ? 'Đã đăng ký - Chờ Team Lead duyệt'
+          : cell.registeredStatus === 'APPROVED'
+            ? 'Đã được Team Lead duyệt'
+            : cell.registeredStatus === 'PUBLISHED'
+              ? 'Đã được chốt lịch'
+              : cell.registeredStatus === 'UNPUBLISHED'
+                ? 'Đã duyệt nhưng chưa công bố'
+                : 'Ngày này đã được đăng ký'
+      )
+    : cell.full
+      ? 'Ngày này đã đủ số lượng người nghỉ'
+      : !cell.inRange
+        ? 'Ngày ngoài kỳ đăng ký'
+        : ''
+" (click)="dateToggle.emit(cell)">
         {{ cell.day }}
       </button>
     </ng-container>
