@@ -36,7 +36,6 @@ export interface AuthApiResponse {
   ok: boolean;
   message: string;
   accessToken?: string;
-  refreshToken?: string;
   expiresIn?: number;
   accessTokenExpiresAt?: string;
   user?: AuthUser;

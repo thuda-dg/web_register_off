@@ -803,8 +803,10 @@ async function refreshSession(
           item.role_code
       )
   };
-
-
+  const nextRefreshToken =
+  createRandomToken();
+const nextRefreshTokenHash =
+  hashToken(nextRefreshToken);
   const {
     token: accessToken,
     expiresAt
@@ -812,7 +814,15 @@ async function refreshSession(
     createAccessToken(
       accessTokenPayload
     );
-
+    const nextRefreshTokenExpiresAt =
+  new Date(
+    Date.now() +
+    getRefreshTokenTtlSeconds() * 1000
+  );
+await session.update({
+  token: nextRefreshTokenHash,
+  expiresAt: nextRefreshTokenExpiresAt
+});
 
   return {
     ok: true,
@@ -821,7 +831,8 @@ async function refreshSession(
       'Refresh token thành công.',
 
     accessToken,
-
+    refreshToken:
+    nextRefreshToken,
     expiresIn:
       getAccessTokenTtlSeconds(),
 
@@ -841,18 +852,17 @@ async function refreshSession(
 async function logoutSession(
   refreshToken
 ) {
-  if (!refreshToken) {
-    throw toHttpError(
-      'Refresh token không được cung cấp.',
-      400,
-      'INVALID_REFRESH_TOKEN'
-    );
-  }
 
+  if (!refreshToken) {
+    return {
+      ok: true,
+      message:
+        'Đăng xuất thành công.'
+    };
+  }
 
   const refreshTokenHash =
     hashToken(refreshToken);
-
 
   const session =
     await RefreshToken.findOne({
@@ -862,25 +872,12 @@ async function logoutSession(
       }
     });
 
-
-  // Logout idempotent:
-  // token không còn thì vẫn coi là logout thành công.
-  if (!session) {
-    return {
-      ok: true,
-
-      message:
-        'Đăng xuất thành công.'
-    };
+  if (session) {
+    await session.destroy();
   }
-
-
-  await session.destroy();
-
 
   return {
     ok: true,
-
     message:
       'Đăng xuất thành công.'
   };

@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 require('dotenv').config();
 
 const registrationRoutes =
@@ -17,6 +18,7 @@ const app = express();
 
 app.locals.dbReady = false;
 
+app.use(cookieParser());
 app.use(
   cors({
     origin: [

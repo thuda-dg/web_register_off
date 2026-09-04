@@ -20,11 +20,11 @@ import {
   AuthService
 } from '../services/auth.service';
 
-
 @Injectable({
   providedIn: 'root'
 })
-export class AuthGuard implements CanActivate {
+export class AuthGuard
+  implements CanActivate {
 
   private readonly authService =
     inject(AuthService);
@@ -32,78 +32,81 @@ export class AuthGuard implements CanActivate {
   private readonly router =
     inject(Router);
 
-
   canActivate():
-    boolean |
-    UrlTree |
-    Observable<boolean | UrlTree> {
+  boolean |
+  UrlTree |
+  Observable<boolean | UrlTree> {
 
-    // =====================================================
-    // Đã có access token
-    // =====================================================
+  console.log(
+    '[AUTH GUARD] canActivate called'
+  );
+  console.log(
+  'typeof window:',
+  typeof window
+);
 
-    if (
-      this.authService
-        .getAccessToken()
-    ) {
-      return true;
-    }
+  const accessToken =
+    this.authService.getAccessToken();
 
+  console.log(
+    '[AUTH GUARD] accessToken:',
+    accessToken
+  );
 
-    // =====================================================
-    // Không có access token,
-    // thử dùng refresh token
-    // =====================================================
+  if (accessToken) {
 
-    const refreshToken =
-      this.authService
-        .getRefreshToken();
+    console.log(
+      '[AUTH GUARD] Access token exists -> allow'
+    );
 
+    return true;
+  }
 
-    if (!refreshToken) {
-      return this.router
-        .createUrlTree([
-          '/login'
-        ]);
-    }
+  console.log(
+    '[AUTH GUARD] No access token -> trying refresh'
+  );
 
+  return this.authService
+    .refreshAuthToken()
+    .pipe(
 
-    // =====================================================
-    // Restore session
-    // =====================================================
+      map(() => {
 
-    return this.authService
-      .refreshAuthToken()
-      .pipe(
+        console.log(
+          '[AUTH GUARD] Refresh success'
+        );
 
-        map(() => {
+        const newAccessToken =
+          this.authService
+            .getAccessToken();
 
-          const newAccessToken =
-            this.authService
-              .getAccessToken();
+        console.log(
+          '[AUTH GUARD] New access token:',
+          newAccessToken
+        );
 
-          if (newAccessToken) {
-            return true;
-          }
+        if (newAccessToken) {
+          return true;
+        }
 
-          return this.router
+        return this.router
+          .createUrlTree([
+            '/login'
+          ]);
+      }),
+
+      catchError(error => {
+
+        this.authService
+          .clearAuth();
+
+        return of(
+          this.router
             .createUrlTree([
               '/login'
-            ]);
-        }),
-
-        catchError(() => {
-
-          this.authService
-            .clearAuth();
-
-          return of(
-            this.router
-              .createUrlTree([
-                '/login'
-              ])
-          );
-        })
-      );
-  }
+            ])
+        );
+      })
+    );
+}
 }

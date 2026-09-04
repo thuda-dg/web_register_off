@@ -1,178 +1,306 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Router } from '@angular/router';
-import { Observable, catchError, finalize, lastValueFrom, map, throwError } from 'rxjs';
-import { AuthApiResponse, AuthUser, ForgotPasswordRequest, LoginRequest, RegisterRequest, ResetPasswordRequest } from '../models/auth.model';
-import { environment } from '../../../environments/environment';
+import {
+  Injectable,
+  computed,
+  inject,
+  signal
+} from '@angular/core';
+
+import {
+  HttpClient
+} from '@angular/common/http';
+
+import {
+  Router
+} from '@angular/router';
+
+import {
+  Observable,
+  catchError,
+  finalize,
+  lastValueFrom,
+  map,
+  throwError
+} from 'rxjs';
+
+import {
+  AuthApiResponse,
+  AuthUser,
+  ForgotPasswordRequest,
+  LoginRequest,
+  RegisterRequest,
+  ResetPasswordRequest
+} from '../models/auth.model';
+
+import {
+  environment
+} from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
-  private readonly http = inject(HttpClient);
-  private readonly router = inject(Router);
 
-  private readonly apiUrl = `${environment.apiUrl}/auth`;
-  private readonly accessTokenKey = 'access_token';
-  private readonly refreshTokenKey = 'refresh_token';
+  private readonly http =
+    inject(HttpClient);
 
-  private readonly accessTokenSignal = signal<string | null>(this.readStorage(this.accessTokenKey));
-  private readonly refreshTokenSignal = signal<string | null>(this.readStorage(this.refreshTokenKey));
-  private readonly currentUserSignal = signal<AuthUser | null>(null);
+  private readonly router =
+    inject(Router);
 
-  readonly accessToken = this.accessTokenSignal.asReadonly();
-  readonly refreshToken = this.refreshTokenSignal.asReadonly();
-  readonly currentUser = this.currentUserSignal.asReadonly();
-  readonly isAuthenticated = computed(() => Boolean(this.accessTokenSignal()));
+  private readonly apiUrl =
+    `${environment.apiUrl}/auth`;
 
-  private refreshInFlight: Promise<AuthApiResponse> | null = null;
+  /*
+   * Access token chỉ giữ trong memory.
+   * Không lưu localStorage.
+   */
+  private readonly accessTokenSignal =
+    signal<string | null>(null);
 
-  constructor() {
-    const storedUser = this.readStorage('auth_user');
-    if (storedUser) {
-      this.currentUserSignal.set(JSON.parse(storedUser));
-    }
-  }
+  /*
+   * User hiện tại cũng giữ trong memory.
+   */
+  private readonly currentUserSignal =
+    signal<AuthUser | null>(null);
 
-  login(payload: LoginRequest): Observable<AuthApiResponse> {
-    return this.http.post<AuthApiResponse>(`${this.apiUrl}/login`, payload).pipe(
-      map((response) => {
-        this.persistAuth(response);
-        return response;
-      })
+  readonly accessToken =
+    this.accessTokenSignal.asReadonly();
+
+  readonly currentUser =
+    this.currentUserSignal.asReadonly();
+
+  readonly isAuthenticated =
+    computed(() =>
+      Boolean(
+        this.accessTokenSignal()
+      )
     );
+
+  /*
+   * Dùng để tránh nhiều request refresh
+   * chạy cùng lúc.
+   */
+  private refreshInFlight:
+    Promise<AuthApiResponse> | null =
+      null;
+
+  login(
+    payload: LoginRequest
+  ): Observable<AuthApiResponse> {
+
+    return this.http
+      .post<AuthApiResponse>(
+        `${this.apiUrl}/login`,
+        payload,
+        {
+          /*
+           * Cho phép browser nhận
+           * refresh-token cookie từ backend.
+           */
+          withCredentials: true
+        }
+      )
+      .pipe(
+        map(response => {
+
+          this.persistAuth(
+            response
+          );
+
+          return response;
+        })
+      );
   }
 
-  register(payload: RegisterRequest): Observable<AuthApiResponse> {
-    return this.http.post<AuthApiResponse>(`${this.apiUrl}/register`, payload);
+  register(
+    payload: RegisterRequest
+  ): Observable<AuthApiResponse> {
+
+    return this.http
+      .post<AuthApiResponse>(
+        `${this.apiUrl}/register`,
+        payload
+      );
   }
 
-  forgotPassword(payload: ForgotPasswordRequest): Observable<AuthApiResponse> {
-    return this.http.post<AuthApiResponse>(`${this.apiUrl}/forgot-password`, payload);
+  forgotPassword(
+    payload: ForgotPasswordRequest
+  ): Observable<AuthApiResponse> {
+
+    return this.http
+      .post<AuthApiResponse>(
+        `${this.apiUrl}/forgot-password`,
+        payload
+      );
   }
 
-  resetPassword(payload: ResetPasswordRequest): Observable<AuthApiResponse> {
-    return this.http.post<AuthApiResponse>(`${this.apiUrl}/reset-password`, payload);
+  resetPassword(
+    payload: ResetPasswordRequest
+  ): Observable<AuthApiResponse> {
+
+    return this.http
+      .post<AuthApiResponse>(
+        `${this.apiUrl}/reset-password`,
+        payload
+      );
   }
 
-  refreshAuthToken(): Observable<AuthApiResponse> {
-    const currentRefreshToken = this.getRefreshToken();
+  refreshAuthToken():
+    Observable<AuthApiResponse> {
 
-    if (!currentRefreshToken) {
-      this.clearAuth();
-      return throwError(() => new Error('Refresh token is missing.'));
-    }
+    /*
+     * Không còn check refresh token
+     * ở Angular.
+     *
+     * Angular không biết refresh token
+     * là gì vì cookie là HttpOnly.
+     */
 
     if (!this.refreshInFlight) {
-      this.refreshInFlight = lastValueFrom(
-        this.http
-          .post<AuthApiResponse>(`${this.apiUrl}/refresh-token`, {
-            refreshToken: currentRefreshToken
-          })
-          .pipe(
-            map((response) => {
-              this.persistAuth(response);
-              return response;
-            }),
-            catchError((error) => {
-              this.clearAuth();
-              throw error;
-            }),
-            finalize(() => {
-              this.refreshInFlight = null;
-            })
-          )
-      );
+
+      this.refreshInFlight =
+        lastValueFrom(
+
+          this.http
+            .post<AuthApiResponse>(
+              `${this.apiUrl}/refresh-token`,
+
+              /*
+               * Không gửi refreshToken
+               * trong body nữa.
+               */
+              {},
+
+              {
+                /*
+                 * Browser tự attach
+                 * HttpOnly cookie.
+                 */
+                withCredentials: true
+              }
+            )
+            .pipe(
+
+              map(response => {
+
+                this.persistAuth(
+                  response
+                );
+
+                return response;
+              }),
+
+              catchError(error => {
+
+                this.clearAuth();
+
+                return throwError(
+                  () => error
+                );
+              }),
+
+              finalize(() => {
+
+                this.refreshInFlight =
+                  null;
+
+              })
+            )
+        );
     }
 
-    return new Observable<AuthApiResponse>((observer) => {
-      this.refreshInFlight!
-        .then((response) => {
-          observer.next(response);
-          observer.complete();
-        })
-        .catch((error) => {
-          observer.error(error);
-        });
-    });
-  }
+    return new Observable<AuthApiResponse>(
+      observer => {
 
-  logout(): Observable<AuthApiResponse> {
-    const refreshTokenValue = this.getRefreshToken();
+        this.refreshInFlight!
+          .then(response => {
 
-    return this.http.post<AuthApiResponse>(`${this.apiUrl}/logout`, { refreshToken: refreshTokenValue }).pipe(
-      finalize(() => {
-        this.clearAuth();
-        this.router.navigate(['/login']);
-      })
+            observer.next(
+              response
+            );
+
+            observer.complete();
+
+          })
+          .catch(error => {
+
+            observer.error(
+              error
+            );
+
+          });
+      }
     );
   }
 
-  getAccessToken(): string | null {
+  logout():
+    Observable<AuthApiResponse> {
+
+    /*
+     * Không lấy refresh token nữa.
+     *
+     * Browser tự gửi cookie.
+     */
+    return this.http
+      .post<AuthApiResponse>(
+        `${this.apiUrl}/logout`,
+        {},
+        {
+          withCredentials: true
+        }
+      )
+      .pipe(
+        finalize(() => {
+
+          this.clearAuth();
+
+          this.router.navigate([
+            '/login'
+          ]);
+
+        })
+      );
+  }
+
+  getAccessToken():
+    string | null {
+
     return this.accessTokenSignal();
   }
 
-  getRefreshToken(): string | null {
-    return this.refreshTokenSignal();
-  }
+  private persistAuth(
+    response: AuthApiResponse
+  ): void {
 
-  private persistAuth(response: AuthApiResponse): void {
-    const nextAccessToken = response.accessToken ?? null;
-    const nextRefreshToken = response.refreshToken ?? this.getRefreshToken();
+    /*
+     * Backend chỉ trả:
+     *
+     * accessToken
+     * user
+     *
+     * Không trả refreshToken.
+     */
 
-    this.accessTokenSignal.set(nextAccessToken);
-    this.refreshTokenSignal.set(nextRefreshToken);
-    this.currentUserSignal.set(response.user ?? this.currentUserSignal());
-
-    if (nextAccessToken) {
-      this.writeStorage(this.accessTokenKey, nextAccessToken);
-    } else {
-      this.removeStorage(this.accessTokenKey);
-    }
-
-    if (nextRefreshToken) {
-      this.writeStorage(this.refreshTokenKey, nextRefreshToken);
-    } else {
-      this.removeStorage(this.refreshTokenKey);
-    }
+    this.accessTokenSignal.set(
+      response.accessToken ?? null
+    );
 
     if (response.user) {
-      this.writeStorage('auth_user', JSON.stringify(response.user));
-    } else {
-      this.removeStorage('auth_user');
+
+      this.currentUserSignal.set(
+        response.user
+      );
+
     }
   }
 
   clearAuth(): void {
-    this.accessTokenSignal.set(null);
-    this.refreshTokenSignal.set(null);
-    this.currentUserSignal.set(null);
-    this.removeStorage(this.accessTokenKey);
-    this.removeStorage(this.refreshTokenKey);
-    this.removeStorage('auth_user');
-  }
 
-  private readStorage(key: string): string | null {
-    if (typeof window === 'undefined') {
-      return null;
-    }
+    this.accessTokenSignal.set(
+      null
+    );
 
-    return window.localStorage.getItem(key);
-  }
-
-  private writeStorage(key: string, value: string): void {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    window.localStorage.setItem(key, value);
-  }
-
-  private removeStorage(key: string): void {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    window.localStorage.removeItem(key);
+    this.currentUserSignal.set(
+      null
+    );
   }
 }
