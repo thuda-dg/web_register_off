@@ -5,7 +5,7 @@ const common = {
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
   host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT || 5432),
+  port: Number(process.env.DB_PORT || 5433),
   dialect: 'postgres',
   logging: false,
   timezone: '+07:00',
