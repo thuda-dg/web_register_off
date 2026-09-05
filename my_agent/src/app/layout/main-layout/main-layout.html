@@ -1,0 +1,56 @@
+<main class="min-h-screen bg-slate-100 px-4 py-5 text-slate-800">
+
+  <div class="mx-auto max-w-6xl">
+
+    <header class="mb-5 rounded-xl bg-emerald-700 px-6 py-4 text-white shadow-sm">
+
+      <h1 class="text-lg font-bold">
+        Đăng ký lịch nghỉ – WFM Off Schedule
+      </h1>
+
+      <p class="mt-1 text-xs text-white/85">
+        Hệ thống quản lý lịch nghỉ WFM
+      </p>
+
+    </header>
+
+
+    <!-- MENU -->
+    <nav class="mb-5 rounded-xl bg-white px-5 py-3 shadow">
+
+      <div class="flex gap-5 text-sm font-semibold">
+
+        <a routerLink="/schedule"
+           routerLinkActive="text-emerald-700">
+          Đăng ký nghỉ
+        </a>
+
+
+        <a routerLink="/history"
+           routerLinkActive="text-emerald-700">
+          Lịch sử đăng ký
+        </a>
+
+
+        <a routerLink="/published"
+           routerLinkActive="text-emerald-700">
+          Lịch đã duyệt
+        </a>
+
+
+        <a routerLink="/require-hc"
+           routerLinkActive="text-emerald-700">
+          Require HC
+        </a>
+
+      </div>
+
+    </nav>
+
+
+    <router-outlet></router-outlet>
+
+
+  </div>
+
+</main>

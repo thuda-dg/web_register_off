@@ -24,13 +24,19 @@ const {
   RegistrationCycle
 } = require('../models');
 
+
 async function validateRegistration({
   empId,
   cycleId,
   entries,
-  transaction = null
+  transaction = null,
+  roles = []
 }) {
+
+  const isAdmin = roles.includes('ADMIN');
+
   const errors = [];
+
 
   // Kiểm tra cấu trúc request trước
   const structureErrors =
@@ -40,13 +46,14 @@ async function validateRegistration({
 
   errors.push(...structureErrors);
 
-  // Dừng sớm nếu cấu trúc entry không hợp lệ
+
   if (structureErrors.length > 0) {
     return {
       valid: false,
       errors
     };
   }
+
 
   // Kiểm tra trùng ngày trong cùng request
   const duplicateRequestErrors =
@@ -56,16 +63,22 @@ async function validateRegistration({
 
   errors.push(...duplicateRequestErrors);
 
-  // Kiểm tra kỳ đăng ký
+
+  /*
+   * ADMIN được phép đăng ký ngoài thời gian mở form.
+   * User thường vẫn phải kiểm tra cycle.
+   */
   const cycleErrors =
-    await validateCycleAvailability({
-      cycleId,
-      transaction
-    });
+    isAdmin
+      ? []
+      : await validateCycleAvailability({
+          cycleId,
+          transaction
+        });
 
   errors.push(...cycleErrors);
 
-  // Dừng sớm nếu cycle không tồn tại hoặc chưa mở
+
   if (cycleErrors.length > 0) {
     return {
       valid: false,
@@ -73,7 +86,8 @@ async function validateRegistration({
     };
   }
 
-  // Kiểm tra loại nghỉ trong request
+
+  // Kiểm tra loại nghỉ
   const leaveTypeErrors =
     await validateSupportedLeaveTypes({
       entries,
@@ -82,13 +96,14 @@ async function validateRegistration({
 
   errors.push(...leaveTypeErrors);
 
-  // Dừng sớm nếu có loại nghỉ không hợp lệ
+
   if (leaveTypeErrors.length > 0) {
     return {
       valid: false,
       errors
     };
   }
+
 
   // Kiểm tra ngày đã tồn tại trong database
   const duplicateDatabaseErrors =
@@ -101,19 +116,23 @@ async function validateRegistration({
 
   errors.push(...duplicateDatabaseErrors);
 
+
   // Lấy kỳ để xác định năm tính AL
-  const cycle = await RegistrationCycle.findOne({
-    where: {
-      cycle_id: cycleId
-    },
-    transaction
-  });
+  const cycle =
+    await RegistrationCycle.findOne({
+      where: {
+        cycle_id: cycleId
+      },
+      transaction
+    });
+
 
   const balanceYear = Number(
     String(cycle.start_date).slice(0, 4)
   );
 
-  // Kiểm tra rule OFF
+
+  // Rule OFF
   const offDateErrors =
     await validateOffDatesInCycle({
       cycleId,
@@ -122,6 +141,7 @@ async function validateRegistration({
     });
 
   errors.push(...offDateErrors);
+
 
   const offBalanceErrors =
     await validateOffBalance({
@@ -133,6 +153,7 @@ async function validateRegistration({
 
   errors.push(...offBalanceErrors);
 
+
   const weeklyOffErrors =
     await validateWeeklyOff({
       empId,
@@ -142,6 +163,7 @@ async function validateRegistration({
     });
 
   errors.push(...weeklyOffErrors);
+
 
   const requireHCErrors =
     await validateOffRequireHC({
@@ -153,7 +175,8 @@ async function validateRegistration({
 
   errors.push(...requireHCErrors);
 
-  // Kiểm tra rule A và A/2
+
+  // Rule AL
   const annualLeaveTypeErrors =
     await validateAnnualLeaveTypes({
       entries,
@@ -161,6 +184,7 @@ async function validateRegistration({
     });
 
   errors.push(...annualLeaveTypeErrors);
+
 
   const annualLeaveDateErrors =
     await validateAnnualLeaveDatesInCycle({
@@ -171,6 +195,7 @@ async function validateRegistration({
 
   errors.push(...annualLeaveDateErrors);
 
+
   const annualLeaveReasonErrors =
     await validateAnnualLeaveReasons({
       entries,
@@ -178,6 +203,7 @@ async function validateRegistration({
     });
 
   errors.push(...annualLeaveReasonErrors);
+
 
   const annualLeaveBalanceErrors =
     await validateAnnualLeaveBalance({
@@ -189,11 +215,13 @@ async function validateRegistration({
 
   errors.push(...annualLeaveBalanceErrors);
 
+
   return {
     valid: errors.length === 0,
     errors
   };
 }
+
 
 module.exports = {
   validateRegistration

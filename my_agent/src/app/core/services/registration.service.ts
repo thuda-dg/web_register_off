@@ -22,6 +22,10 @@ import {
 } from '../models/registration.model';
 
 import {
+  HistoryResponse
+} from '../models/history.models';
+
+import {
   AuthService
 } from './auth.service';
 
@@ -143,8 +147,21 @@ export class RegistrationService {
   getMyEntries(
   cycleId: number
 ): Observable<MyRegistrationEntriesResponse> {
+
   return this.http.get<MyRegistrationEntriesResponse>(
     `${this.apiUrl}/my-entries?cycleId=${cycleId}`,
+    {
+      headers: this.createHeaders()
+    }
+  );
+
+}
+
+// HISTORY
+getMyRegistrationHistory(): Observable<HistoryResponse> {
+
+  return this.http.get<HistoryResponse>(
+    `${this.apiUrl}/history`,
     {
       headers: this.createHeaders()
     }

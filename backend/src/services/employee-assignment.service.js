@@ -37,7 +37,10 @@ async function getEmployeeAssignmentByDate({
 
     throw error;
   }
-
+    console.log(
+      'TEAM SEARCH:',
+      {empId,workingDate}
+    );
   // Tìm team của nhân viên tại ngày đăng ký nghỉ
   const teamHistory = await EmpTeamHistory.findOne({
     where: {
@@ -78,6 +81,7 @@ async function getEmployeeAssignmentByDate({
   });
 
   if (!teamHistory || !teamHistory.team) {
+    console.log('TEAM HISTORY RESULT:',teamHistory);
     const error = new Error(
       `Không tìm thấy team của nhân viên tại ngày ${workingDate}.`
     );

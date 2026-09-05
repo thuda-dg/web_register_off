@@ -20,7 +20,7 @@ const {
   getOffBalance
 } = require('./leave-balance.service');
 
-async function getRegistrationBootstrap(empId) {
+async function getRegistrationBootstrap(empId, roles = []) {
   // Lấy thông tin nhân viên
   const employee = await Employee.findOne({
     where: {
@@ -45,10 +45,14 @@ async function getRegistrationBootstrap(empId) {
   }
 
   // Lấy kỳ đăng ký đang mở gần nhất
+  const isAdmin = roles.includes('ADMIN');
+
   const cycle = await RegistrationCycle.findOne({
-    where: {
-      status: 'OPEN'
-    },
+    where: isAdmin
+      ? {}
+      : {
+          status: 'OPEN'
+        },
     order: [
       ['start_date', 'DESC']
     ]
@@ -352,12 +356,14 @@ async function getRegistrationBootstrap(empId) {
     new Date(
       cycle.registration_closing_time
     );
-
   // Kiểm tra form hiện tại có đang mở hay không
   const isRegistrationOpen =
+  isAdmin ||
+  (
     cycle.status === 'OPEN' &&
     currentTime >= openTime &&
-    currentTime <= closingTime;
+    currentTime <= closingTime
+  );
 
   // Lấy ngày mở đăng ký tiếp theo
   const nextOpenDate =

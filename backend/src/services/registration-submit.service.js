@@ -11,9 +11,8 @@ const {
 
 const {
   prepareRegistrationEntries
-} = require(
-  './registration-entry-preparation.service'
-);
+} = require('./registration-entry-preparation.service');
+
 
 function generateRegistrationCode({
   empId,
@@ -24,24 +23,32 @@ function generateRegistrationCode({
   return `REG-${cycleId}-${empId}-${timestamp}`;
 }
 
+
 async function submitRegistration({
   empId,
   cycleId,
-  entries
+  entries,
+  roles = []
 }) {
+
   const transaction =
     await sequelize.transaction();
 
+
   try {
+
     const validationResult =
       await validateRegistration({
         empId,
         cycleId,
         entries,
-        transaction
+        transaction,
+        roles
       });
 
+
     if (!validationResult.valid) {
+
       const error = new Error(
         'Dữ liệu đăng ký không hợp lệ.'
       );
@@ -57,6 +64,7 @@ async function submitRegistration({
       throw error;
     }
 
+
     const preparedEntries =
       await prepareRegistrationEntries({
         empId,
@@ -64,11 +72,13 @@ async function submitRegistration({
         transaction
       });
 
+
     const submissionCode =
       generateRegistrationCode({
         empId,
         cycleId
       });
+
 
     const submission =
       await RegistrationSubmission.create(
@@ -93,17 +103,23 @@ async function submitRegistration({
         }
       );
 
+
     const createdEntries = [];
+
 
     for (
       let index = 0;
       index < preparedEntries.length;
       index += 1
     ) {
-      const entry = preparedEntries[index];
+
+      const entry =
+        preparedEntries[index];
+
 
       const entryRegistrationCode =
         `${submissionCode}-${String(index + 1).padStart(3, '0')}`;
+
 
       const createdEntry =
         await RegistrationEntry.create(
@@ -143,7 +159,9 @@ async function submitRegistration({
           }
         );
 
+
       createdEntries.push(createdEntry);
+
 
       await RegistrationAction.create(
         {
@@ -171,7 +189,9 @@ async function submitRegistration({
       );
     }
 
+
     await transaction.commit();
+
 
     return {
       submissionCode,
@@ -222,12 +242,16 @@ async function submitRegistration({
           })
         )
     };
+
+
   } catch (error) {
+
     await transaction.rollback();
 
     throw error;
   }
 }
+
 
 module.exports = {
   generateRegistrationCode,

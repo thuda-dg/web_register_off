@@ -28,14 +28,74 @@ import { AuthService } from '../../../core/services/auth.service';
           </div>
 
           <div>
-            <label class="mb-1 block text-sm font-medium">Email</label>
-            <input formControlName="empEmail" type="email" class="w-full rounded-lg border border-slate-300 px-3 py-2" />
+            <label class="mb-1 block text-sm font-medium">
+              Email
+            </label>
+
+            <input
+              formControlName="empEmail"
+              type="email"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2"
+            />
+
+            <div
+              *ngIf="
+                form.get('empEmail')?.touched &&
+                form.get('empEmail')?.hasError('required')
+              "
+              class="mt-1 text-sm text-red-600"
+            >
+              Vui lòng nhập email.
+            </div>
+
+            <div
+              *ngIf="
+                form.get('empEmail')?.touched &&
+                form.get('empEmail')?.hasError('email')
+              "
+              class="mt-1 text-sm text-red-600"
+            >
+              Email không đúng định dạng.
+            </div>
+
+            <div
+              *ngIf="
+                form.get('empEmail')?.touched &&
+                form.get('empEmail')?.hasError('pattern')
+              "
+              class="mt-1 text-sm text-red-600"
+            >
+              Email phải là mail công ty "@trans-cosmos.com.vn"
+            </div>
           </div>
 
           <div>
             <label class="mb-1 block text-sm font-medium">Mật khẩu</label>
-            <input type="password" formControlName="password" class="w-full rounded-lg border border-slate-300 px-3 py-2" />
-          </div>
+            <input
+              type="password"
+              formControlName="password"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2"
+            />
+            <div
+              *ngIf="
+                form.get('password')?.touched &&
+                form.get('password')?.hasError('minlength')
+              "
+              class="mt-1 text-sm text-red-600"
+            >
+              Mật khẩu phải có ít nhất 8 ký tự.
+            </div>
+
+            <div
+              *ngIf="
+                form.get('password')?.touched &&
+                form.get('password')?.hasError('required')
+              "
+              class="mt-1 text-sm text-red-600"
+            >
+              Vui lòng nhập mật khẩu.
+            </div>
+        </div>
 
           <div *ngIf="errorMessage" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
             {{ errorMessage }}
@@ -62,7 +122,7 @@ export class RegisterComponent {
   readonly form: FormGroup = this.fb.group({
     empCode: ['', Validators.required],
     empName: ['', Validators.required],
-    empEmail: ['', [Validators.required, Validators.email]],
+    empEmail: ['', [Validators.required, Validators.pattern(/^[a-zA-Z0-9._%+-]+@trans-cosmos\.com\.vn$/)]],
     password: ['', [Validators.required, Validators.minLength(8)]]
   });
 
@@ -70,6 +130,12 @@ export class RegisterComponent {
   errorMessage = '';
 
   submit(): void {
+    console.log(
+        'REGISTER CLICK',
+        this.form.value,
+        this.form.valid
+      );
+
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;

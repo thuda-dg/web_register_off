@@ -1,61 +1,23 @@
 const sequelize = require('../config/sequelize');
-
-const Employee =
-  require('./employee.model')(sequelize);
-
-const UserAccount =
-  require('./user-account.model')(sequelize);
-
-const AccountSession =
-  require('./account-session.model')(sequelize);
-
-const RefreshToken =
-  require('./refresh-token.model')(sequelize);
-
-const Role =
-  require('./role.model')(sequelize);
-
-const UserRole =
-  require('./user-role.model')(sequelize);
-
-const Team =
-  require('./team.model')(sequelize);
-
-const Task =
-  require('./task.model')(sequelize);
-
-const EmpTeamHistory =
-  require('./emp-team-history.model')(sequelize);
-
-const EmpTaskHistory =
-  require('./emp-task-history.model')(sequelize);
-
-const LeaveType =
-  require('./leave-type.model')(sequelize);
-
-const LeaveReason =
-  require('./leave-reason.model')(sequelize);
-
-const RegistrationCycle =
-  require('./registration-cycle.model')(sequelize);
-
-const EmpAnnualLeave =
-  require('./emp-annual-leave.model')(sequelize);
-
-const EmployeeCycleOff =
-  require('./employee-cycle-off.model')(sequelize);
-
-const RequireHC =
-  require('./require-hc.model')(sequelize);
-
-const RegistrationSubmission =
-  require('./registration-submission.model')(sequelize);
-
-const RegistrationEntry =
-  require('./registration-entry.model')(sequelize);
-
-const RegistrationAction =
-  require('./registration-action.model')(sequelize);
+const Employee = require('./employee.model')(sequelize);
+const UserAccount = require('./user-account.model')(sequelize);
+const AccountSession = require('./account-session.model')(sequelize);
+const RefreshToken = require('./refresh-token.model')(sequelize);
+const Role = require('./role.model')(sequelize);
+const UserRole = require('./user-role.model')(sequelize);
+const Team =  require('./team.model')(sequelize);
+const Task =  require('./task.model')(sequelize);
+const EmpTeamHistory = require('./emp-team-history.model')(sequelize);
+const EmpTaskHistory = require('./emp-task-history.model')(sequelize);
+const LeaveType = require('./leave-type.model')(sequelize);
+const LeaveReason = require('./leave-reason.model')(sequelize);
+const RegistrationCycle = require('./registration-cycle.model')(sequelize);
+const EmpAnnualLeave = require('./emp-annual-leave.model')(sequelize);
+const EmployeeCycleOff = require('./employee-cycle-off.model')(sequelize);
+const RequireHC = require('./require-hc.model')(sequelize);
+const RegistrationSubmission = require('./registration-submission.model')(sequelize);
+const RegistrationEntry = require('./registration-entry.model')(sequelize);
+const RegistrationAction = require('./registration-action.model')(sequelize);
 
 // Employee – team history
 Employee.hasMany(EmpTeamHistory, {

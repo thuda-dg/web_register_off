@@ -1,5 +1,23 @@
 <div class="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-  <label class="block"><span class="mb-1 block text-xs font-semibold text-slate-500">Kỳ lương</span><select class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" [ngModel]="value.cycle" (ngModelChange)="updateFilter('cycle', $event)"><option value="">Tất cả kỳ</option>@for (cycle of options.cycles; track cycle.value) {<option [value]="cycle.value">Kỳ {{ cycle.label }}</option>}</select></label>
-  <label class="block"><span class="mb-1 block text-xs font-semibold text-slate-500">Loại nghỉ</span><select class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" [ngModel]="value.type" (ngModelChange)="updateFilter('type', $event)"><option value="">Tất cả loại</option>@for (type of options.types; track type) {<option [value]="type">{{ type }}</option>}</select></label>
-  <label class="block"><span class="mb-1 block text-xs font-semibold text-slate-500">Trạng thái</span><select class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" [ngModel]="value.status" (ngModelChange)="updateFilter('status', $event)"><option value="">Tất cả trạng thái</option>@for (status of options.statuses; track status) {<option [value]="status">{{ status }}</option>}</select></label>
+  <label class="block"><span class="mb-1 block text-xs font-semibold text-slate-500">Kỳ lương</span><select class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" [ngModel]="value.cycle" (ngModelChange)="updateFilter('cycle', $event)"><option value="ALL">Tất cả kỳ</option>@for (cycle of options.cycles; track cycle.value) {<option [value]="cycle.value">Kỳ {{ cycle.label }}</option>}</select></label>
+  <label class="block"><span class="mb-1 block text-xs font-semibold text-slate-500">Loại nghỉ</span><select class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" [ngModel]="value.type" (ngModelChange)="updateFilter('type', $event)"><option value="ALL">Tất cả loại</option>@for (type of options.types; track type) {<option [value]="type">{{ type }}</option>}</select></label>
+  <label class="block">
+    <span class="mb-1 block text-xs font-semibold text-slate-500">
+      Trạng thái
+    </span>
+    <select
+      class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+      [ngModel]="value.status"
+      (ngModelChange)="updateFilter('status', $event)"
+    >
+      <option value="ALL">
+        Tất cả trạng thái
+      </option>
+      @for (status of options.statuses; track status.value) {
+        <option [value]="status.value">
+          {{ status.label }}
+        </option>
+      }
+    </select>
+</label>
 </div>

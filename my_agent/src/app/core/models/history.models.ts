@@ -1,17 +1,14 @@
 export interface HistoryRow {
-  id: string;
   cycleKey: string;
   cycleLabel: string;
   date: string;
-  dateVN: string;
   type: string;
-  reason: string;
+  typeName: string;
   tlStatus: string;
-  publicStatus: string;
-  approvedBy: string;
-  approvedAt: string;
   submittedAt: string;
-  active: boolean;
+  approvedAt: string | null;
+  submissionId: number;
+  entryId: number;
 }
 
 export interface HistorySummary {
@@ -21,12 +18,17 @@ export interface HistorySummary {
   published: number;
 }
 
+
 export interface HistoryResponse {
   ok: boolean;
-  rows: HistoryRow[];
-  summary: HistorySummary;
-  msg?: string;
+  message?: string;
+  data: {
+    summary: HistorySummary;
+    rows: HistoryRow[];
+  };
+
 }
+
 
 export interface HistoryFiltersValue {
   cycle: string;
@@ -34,8 +36,16 @@ export interface HistoryFiltersValue {
   status: string;
 }
 
+
 export interface HistoryFilterOptions {
-  cycles: Array<{ value: string; label: string }>;
+  cycles: Array<{
+    value: string;
+    label: string;
+  }>;
   types: string[];
-  statuses: string[];
+  statuses: Array<{
+    value: string;
+    label: string;
+  }>;
+
 }

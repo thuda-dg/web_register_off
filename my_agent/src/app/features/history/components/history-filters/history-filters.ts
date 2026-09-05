@@ -7,5 +7,23 @@ export class HistoryFiltersComponent {
   @Input({ required:true }) options!: HistoryFilterOptions;
   @Input({ required:true }) value!: HistoryFiltersValue;
   @Output() valueChange = new EventEmitter<HistoryFiltersValue>();
-  updateFilter(key: keyof HistoryFiltersValue, nextValue: string): void { this.valueChange.emit({ ...this.value, [key]: nextValue }); }
+  updateFilter(
+    key: keyof HistoryFiltersValue,
+    nextValue: string
+  ): void {
+
+    const newValue = {
+      cycle: this.value?.cycle ?? 'ALL',
+      type: this.value?.type ?? 'ALL',
+      status: this.value?.status ?? 'ALL',
+      [key]: nextValue || 'ALL'
+    };
+
+    console.log(
+      'FILTER EMIT',
+      newValue
+    );
+
+    this.valueChange.emit(newValue);
+  }
 }
