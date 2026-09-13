@@ -7,7 +7,8 @@ const registrationRoutes =
   require('./routes/registration.routes');
 const authRoutes =
   require('./routes/auth.routes');
-
+const adminRoutes =
+  require('./routes/admin.routes');
 const {
   errorHandler
 } = require(
@@ -55,6 +56,10 @@ app.use(
   authRoutes
 );
 
+app.use(
+  '/api',
+  adminRoutes
+);
 // Xử lý route không tồn tại
 app.use((req, res) => {
   res.status(404).json({

@@ -9,14 +9,12 @@ function authMiddleware(
   next
 ) {
   const authHeader =
-    req.header('Authorization');
+  req.header('Authorization');
 
-  const accessToken =
-    authHeader &&
-    authHeader.startsWith('Bearer ')
-      ? authHeader.slice(7)
-      : req.header('X-Access-Token') ||
-        req.body?.accessToken;
+const accessToken =
+  authHeader?.startsWith('Bearer ')
+    ? authHeader.slice(7)
+    : null;
 
 
   console.log(
@@ -73,7 +71,6 @@ function authMiddleware(
   }
 
 
-  req.auth = payload;
   req.user = payload;
 
 
@@ -89,10 +86,36 @@ function authMiddleware(
 
   next();
 }
+function authorizeRoles(...allowedRoles) {
+  return (req, res, next) => {
+    const role = req.user?.role;
 
+    if (!role) {
+      return res.status(403).json({
+        ok: false,
+        code: 'FORBIDDEN',
+        message: 'Không xác định được quyền của người dùng.'
+      });
+    }
+
+    if (!allowedRoles.includes(role)) {
+      return res.status(403).json({
+        ok: false,
+        code: 'FORBIDDEN',
+        message:
+          'Bạn không có quyền thực hiện chức năng này.'
+      });
+    }
+
+    next();
+  };
+}
 
 module.exports = {
   authMiddleware,
   authenticate:
-    authMiddleware
+    authMiddleware,
+  authorizeRoles,
+  authorize:
+    authorizeRoles
 };
