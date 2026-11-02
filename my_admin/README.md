@@ -1,5 +1,33 @@
 # MyAdmin
 
+## Tạo user mới
+
+Đăng nhập bằng tài khoản có role `ADMIN`, mở trang quản lý nhân viên và chọn
+**+ Tạo user mới**. Nhập mã nhân viên, họ tên, email, mật khẩu và xác nhận mật khẩu;
+chọn team (không bắt buộc) và ít nhất một role. Role `EMPLOYEE` được chọn sẵn nếu có.
+Sau khi tạo thành công, user xuất hiện trong danh sách và có thể đăng nhập bằng
+mã nhân viên hoặc email.
+
+Backend cần chạy phiên bản có `GET /api/admin/users/options` và
+`POST /api/admin/users`. Hai API yêu cầu quyền `ADMIN`. Chức năng dùng các bảng
+hiện có, không cần migration mới. Mã nhân viên và email phải chưa tồn tại.
+
+Kiểm tra frontend: chạy `npm test -- --watch=false` trong `my_admin`.
+Kiểm tra backend: chạy `node --test src/test-admin-user.js` trong `backend`.
+
+## Cập nhật role
+
+Với tài khoản `ADMIN`, chọn **Cập nhật role** trên dòng nhân viên, đánh dấu các
+role muốn gán rồi chọn **Lưu role**. Có thể chọn nhiều role; cần giữ ít nhất một
+role đang hoạt động. **Hủy** đóng phần chỉnh sửa mà không lưu.
+Nhân viên phải có tài khoản đăng nhập để được gán role.
+
+API: `PATCH /api/admin/users/:employeeId/roles`, body `{ "roleIds": [1, 2] }`.
+Role cũ được kết thúc hiệu lực; các lần gán từ ngày trước vẫn được giữ trong lịch sử.
+Phiên của user nhận role mới khi refresh token hoặc đăng nhập lại. Khi cập nhật role
+của chính mình, app tự refresh phiên. API quản trị luôn kiểm tra quyền hiện tại từ
+database, nên quyền ADMIN bị thu hồi không tiếp tục truy cập bằng token cũ.
+
 This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.0.6.
 
 ## Development server

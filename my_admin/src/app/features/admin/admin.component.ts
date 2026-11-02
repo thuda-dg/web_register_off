@@ -10,15 +10,12 @@ import {
 } from '@angular/common';
 
 import {
-  Router
-} from '@angular/router';
-
-import {
   finalize
 } from 'rxjs';
 
 import {
-  EmployeeItem
+  EmployeeItem,
+  UpdateUserRolesResponse
 } from '../../core/models/admin.model';
 
 import {
@@ -28,6 +25,8 @@ import {
 import {
   AdminService
 } from '../../core/services/admin.services';
+import { CreateUserComponent } from './create-user.component';
+import { UpdateUserRolesComponent } from './update-user-roles.component';
 
 
 @Component({
@@ -35,7 +34,9 @@ import {
   standalone: true,
 
   imports: [
-    CommonModule
+    CommonModule,
+    CreateUserComponent,
+    UpdateUserRolesComponent
   ],
 
   template: `
@@ -115,6 +116,24 @@ import {
 
       </div>
 
+
+      @if (canCreateUser()) {
+        <button type="button" (click)="showCreate.set(true); successMessage.set('')"
+          [disabled]="showCreate()"
+          class="mb-6 rounded-lg bg-emerald-600 px-5 py-2 font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
+          + Tạo user mới
+        </button>
+      }
+      @if (successMessage()) {
+        <p role="status" class="mb-6 rounded-lg bg-emerald-50 p-4 text-emerald-700">{{ successMessage() }}</p>
+      }
+      @if (showCreate()) {
+        <app-create-user (created)="onUserCreated($event)" (cancelled)="showCreate.set(false)" />
+      }
+      @if (listError()) {
+        <p role="alert" class="mb-4 text-sm text-red-700">{{ listError() }}</p>
+        <button type="button" (click)="loadEmployees()" class="mb-4 rounded-lg border px-4 py-2">Thử lại</button>
+      }
 
       <!-- TABLE -->
       <div
@@ -298,9 +317,12 @@ import {
                     class="whitespace-nowrap px-6 py-4 text-right"
                   >
 
+                    @if (canCreateUser()) {
                     <button
                       type="button"
-                      (click)="editEmployee(employee)"
+                      (click)="openRoleEditor(employee)"
+                      [disabled]="roleSaving()"
+                      [attr.aria-expanded]="editingEmployeeId() === employee.id"
                       class="rounded-lg border
                              border-emerald-600
                              px-4 py-2
@@ -309,12 +331,24 @@ import {
                              transition
                              hover:bg-emerald-50"
                     >
-                      Edit
+                      Cập nhật role
                     </button>
+                    }
 
                   </td>
 
                 </tr>
+
+                @if (editingEmployeeId() === employee.id) {
+                  <tr>
+                    <td colspan="5" class="px-6 pb-5">
+                      <app-update-user-roles [employee]="employee"
+                        (saved)="onRolesUpdated($event)"
+                        (cancelled)="editingEmployeeId.set(null)"
+                        (busy)="roleSaving.set($event)" />
+                    </td>
+                  </tr>
+                }
 
               }
               @empty {
@@ -349,11 +383,42 @@ import {
 export class AdminComponent
   implements OnInit {
 
+  readonly showCreate = signal(false);
+  readonly successMessage = signal('');
+  readonly listError = signal('');
+  readonly editingEmployeeId = signal<number | null>(null);
+  readonly roleSaving = signal(false);
+
+  openRoleEditor(employee: EmployeeItem): void {
+    if (this.roleSaving()) return;
+    this.successMessage.set('');
+    this.editingEmployeeId.set(this.editingEmployeeId() === employee.id ? null : employee.id);
+  }
+
+  onRolesUpdated(response: UpdateUserRolesResponse): void {
+    this.employees.update(items => items.map(employee => employee.id === response.employeeId
+      ? { ...employee, roles: response.roles } : employee));
+    this.editingEmployeeId.set(null);
+    this.successMessage.set('Cập nhật role thành công.');
+    if (this.authService.currentUser()?.empId === response.employeeId) {
+      this.authService.refreshAuthToken().subscribe({
+        error: () => this.successMessage.set('Đã lưu role. Vui lòng đăng nhập lại để cập nhật quyền của bạn.')
+      });
+    }
+  }
+
+  canCreateUser(): boolean {
+    return this.authService.currentUser()?.roles?.some(role => role.roleCode === 'ADMIN') ?? false;
+  }
+
+  onUserCreated(employee: EmployeeItem): void {
+    this.employees.update(items => [...items, employee].sort((a, b) => a.fullName.localeCompare(b.fullName, 'vi')));
+    this.showCreate.set(false);
+    this.successMessage.set('Tạo user thành công. User có thể đăng nhập ngay bằng mã nhân viên hoặc email.');
+  }
+
   private readonly authService =
     inject(AuthService);
-
-  private readonly router =
-    inject(Router);
 
   private readonly adminService =
     inject(AdminService);
@@ -377,7 +442,9 @@ export class AdminComponent
   }
 
 
-  private loadEmployees(): void {
+  loadEmployees(): void {
+
+    this.listError.set('');
 
     this.adminService
       .getAll()
@@ -393,6 +460,8 @@ export class AdminComponent
 
         error: (error) => {
 
+          this.listError.set(error.error?.message || 'Không tải được danh sách nhân viên.');
+
           console.error(
             'Load employees failed:',
             error
@@ -401,24 +470,6 @@ export class AdminComponent
         }
 
       });
-
-  }
-
-
-  editEmployee(
-    employee: EmployeeItem
-  ): void {
-
-    console.log(
-      'Edit employee:',
-      employee
-    );
-
-    this.router.navigate([
-      '/admin/employees',
-      employee.id,
-      'edit'
-    ]);
 
   }
 

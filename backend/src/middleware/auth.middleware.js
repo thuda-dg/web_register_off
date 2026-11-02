@@ -88,9 +88,9 @@ const accessToken =
 }
 function authorizeRoles(...allowedRoles) {
   return (req, res, next) => {
-    const role = req.user?.role;
+    const roles = req.user?.roles || (req.user?.role ? [req.user.role] : []);
 
-    if (!role) {
+    if (!Array.isArray(roles) || roles.length === 0) {
       return res.status(403).json({
         ok: false,
         code: 'FORBIDDEN',
@@ -98,7 +98,7 @@ function authorizeRoles(...allowedRoles) {
       });
     }
 
-    if (!allowedRoles.includes(role)) {
+    if (!roles.some(role => allowedRoles.includes(role))) {
       return res.status(403).json({
         ok: false,
         code: 'FORBIDDEN',

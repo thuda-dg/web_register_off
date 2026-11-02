@@ -1,4 +1,5 @@
 const { Op } = require('sequelize');
+const { getActiveRoles } = require('../utils/role.util');
 
 const {
   sequelize,
@@ -303,7 +304,7 @@ async function registerUser(payload) {
 
 
     const roles =
-      await userAccount.getRoles();
+      await getActiveRoles(userAccount);
 
 
     const profile =
@@ -534,7 +535,7 @@ async function loginUser(
   // =====================================================
 
   const roles =
-    await userAccount.getRoles();
+    await getActiveRoles(userAccount);
 
 
   const profile =
@@ -775,7 +776,7 @@ async function refreshSession(
 
 
   const roles =
-    await userAccount.getRoles();
+    await getActiveRoles(userAccount);
 
 
   const profile =
@@ -1198,7 +1199,7 @@ async function getCurrentUser(
 
 
   const roles =
-    await userAccount.getRoles();
+    await getActiveRoles(userAccount);
 
 
   const profile =
