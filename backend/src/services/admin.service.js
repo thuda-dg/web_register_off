@@ -148,6 +148,53 @@ async function updateUserRoles(employeeId, payload = {}) {
   });
 }
 
+async function updateUserTeam(employeeId, payload = {}) {
+  const id = Number(employeeId);
+  const { teamId } = payload;
+  if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(teamId) || teamId <= 0) {
+    throw invalid('Vui lòng chọn một team hợp lệ.');
+  }
+  return sequelize.transaction(async transaction => {
+    // Lock the employee, including employees without a login account.
+    // Concurrent team changes for this employee must use the same lock.
+    const employee = await Employee.findOne({
+      where: { emp_id: id, is_active: true }, transaction, lock: transaction.LOCK.UPDATE
+    });
+    if (!employee) throw invalid('Không tìm thấy nhân viên đang hoạt động.', 404);
+    const team = await Team.findOne({ where: { team_id: teamId, is_active: true }, transaction });
+    if (!team) throw invalid('Team không tồn tại hoặc đã ngừng hoạt động.');
+    const now = new Date();
+    const today = now.toISOString().slice(0, 10);
+    const yesterday = new Date(now.getTime() - 86400000).toISOString().slice(0, 10);
+    const histories = await EmpTeamHistory.findAll({
+      where: {
+        emp_id: id,
+        [Op.or]: [{ end_date: null }, { end_date: { [Op.gte]: today } }]
+      }, transaction
+    });
+    if (histories.some(history => history.start_date > today)) {
+      const error = new Error('Nhân viên đã có lịch chuyển team trong tương lai. Vui lòng xử lý lịch đó trước khi đổi team hiện tại.');
+      throw Object.assign(error, { statusCode: 409, code: 'FUTURE_TEAM_ASSIGNMENT' });
+    }
+    const retained = histories.find(history => Number(history.team_id) === teamId);
+    for (const history of histories) {
+      if (history === retained) continue;
+      // End dates are inclusive. Remove same-day assignments to avoid end < start.
+      if (history.start_date === today) await history.destroy({ transaction });
+      else await history.update({ end_date: yesterday }, { transaction });
+    }
+    if (retained) {
+      if (retained.end_date !== null) await retained.update({ end_date: null }, { transaction });
+    } else {
+      await EmpTeamHistory.create({ emp_id: id, team_id: teamId, start_date: today, end_date: null }, { transaction });
+    }
+    return {
+      ok: true, message: 'Cập nhật team thành công.', employeeId: id,
+      teamId: Number(team.team_id), teamName: team.team_name
+    };
+  });
+}
+
 
 async function getAllEmployees() {
 
@@ -384,6 +431,7 @@ async function getAllEmployees() {
 
 
 module.exports = {
+  updateUserTeam,
   updateUserRoles,
   createUser,
   getCreateUserOptions,

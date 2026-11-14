@@ -1,59 +1,80 @@
-# MyAgent
+# My Agent — Giao diện nhân viên
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.0.6.
+Frontend Angular 22 standalone cho đăng ký lịch nghỉ. Xem [README gốc](../README.md) để cài đặt database, backend và cấu hình cả hệ thống.
 
-## Development server
+## Chạy ứng dụng
 
-To start a local development server, run:
+Chạy lệnh từ `my_agent`:
 
-```bash
-ng serve
+```powershell
+npm ci
+npm start -- --port 4200
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Mở [localhost:4200](http://localhost:4200). Backend mặc định tại `http://localhost:3000/api`.
 
-## Code scaffolding
+- `src/environments/environment.ts` cấu hình URL cho auth.
+- `src/app/core/services/registration.service.ts` còn hardcode URL API registration; phải cập nhật cùng khi đổi host.
+- Dùng hostname thống nhất và bật CORS phía backend cho origin frontend để refresh cookie hoạt động.
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+## Màn hình và nguồn dữ liệu
 
-```bash
-ng generate component component-name
+| Route | Chức năng | Nguồn dữ liệu |
+| --- | --- | --- |
+| `/login` | Đăng nhập bằng mã nhân viên hoặc email | API auth |
+| `/register` | Tự đăng ký tài khoản EMPLOYEE | API auth công khai |
+| `/schedule` | Xem kỳ, chọn ngày/loại nghỉ/lý do, xác nhận và gửi | API registration |
+| `/history` | Lịch sử cá nhân, lọc kỳ/loại/trạng thái | API registration/history |
+| `/published` | Lịch nghỉ đã chốt, bộ lọc và thống kê | PublishedScheduleMockService |
+| `/require-hc` | Bảng capacity, bộ lọc và thống kê | RequireHcMockService |
+
+Các trang trong MainLayout được bảo vệ bằng AuthGuard. Trang gốc chuyển tới `/schedule`. Component `home` tồn tại nhưng không phải route hiện hành.
+
+RequireHC trong màn hình đăng ký lấy từ bootstrap API thật, khác với trang bảng `/require-hc` đang dùng mock. Không dùng dữ liệu mock để kết luận số dư hoặc slot còn lại trong database.
+
+## Luồng đăng ký
+
+1. AuthGuard lấy phiên; AuthService giữ access token trong memory, refresh token do cookie HttpOnly quản lý.
+2. Schedule gọi bootstrap để lấy employee, team/task, kỳ, loại nghỉ, lý do, số dư và RequireHC.
+3. User chọn ngày và loại nghỉ; loại cần lý do phải chọn lý do tương ứng.
+4. Client gửi validate, sau đó submit. Backend kiểm tra lại trong transaction trước khi lưu.
+5. Lịch đã lưu được xem qua trang history.
+
+User mới cần thêm dữ liệu nghiệp vụ: team/task assignment theo hiệu lực, kỳ đăng ký, số dư OFF/AL và RequireHC. Chỉ có tài khoản đăng nhập chưa đủ để sử dụng trọn luồng.
+
+## Cấu trúc code
+
+```text
+src/app/core/models/        DTO auth, registration và các màn hình
+src/app/core/services/      AuthService, RegistrationService và mock services
+src/app/core/guards/        Kiểm tra phiên
+src/app/core/interceptors/  Gắn access token, xử lý 401 và refresh
+src/app/layout/             MainLayout và menu
+src/app/features/           auth, schedule, history, published-schedule, require-hc
+src/app/app.routes.ts       Route thực tế
+src/app/app.config.ts       Router, HTTP client và interceptor
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+Các component con của schedule gồm lịch chọn ngày, danh sách đã chọn, modal xác nhận và banner trạng thái.
 
-```bash
-ng generate --help
+## Build và test
+
+```powershell
+npm run build
+npm test -- --watch=false
 ```
 
-## Building
+Output build: `dist/my_agent`. Có cấu hình SSR, chạy server đã build bằng:
 
-To build the project run:
-
-```bash
-ng build
+```powershell
+npm run serve:ssr:my_agent
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+Đây không phải cấu hình triển khai production hoàn chỉnh. Không có bộ e2e được cấu hình sẵn. Test `app.spec.ts` còn kỳ vọng tiêu đề Angular mẫu, trong khi app dùng router outlet; cần đối chiếu khi xử lý lỗi test có sẵn.
 
-## Running unit tests
+## Phần chưa hoàn chỉnh
 
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+- Client có `getMyEntries()` gọi `/api/registration/my-entries`, nhưng backend chưa mount endpoint tương ứng. Đừng nhầm với `/history` đã có API.
+- `core/services/wfm-api.service.ts` và `app/wfm-api.service.ts` đều là service mẫu; kiểm tra import của component trước khi sửa.
+- Published schedule và bảng RequireHC chưa nối API thật; các hàm duyệt/công bố trong service mẫu không chứng minh backend có chức năng đó.
+- Quy tắc giao diện và backend có thể khác nhau; validator backend quyết định dữ liệu có được lưu hay không. Đặc biệt rule OFF trước có service riêng nhưng chưa nằm trong validator backend chính.

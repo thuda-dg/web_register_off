@@ -16,7 +16,8 @@ import {
   CreateUserRequest,
   CreateUserOptions,
   CreateUserResponse,
-  UpdateUserRolesResponse
+  UpdateUserRolesResponse,
+  UpdateUserTeamResponse
 } from '../models/admin.model';
 
 import {
@@ -27,6 +28,12 @@ import {
   providedIn: 'root'
 })
 export class AdminService {
+
+  updateUserTeam(employeeId: number, teamId: number): Observable<UpdateUserTeamResponse> {
+    return this.http.patch<UpdateUserTeamResponse>(
+      `${environment.apiUrl}/admin/users/${employeeId}/team`, { teamId }
+    );
+  }
 
   updateUserRoles(employeeId: number, roleIds: number[]): Observable<UpdateUserRolesResponse> {
     return this.http.patch<UpdateUserRolesResponse>(

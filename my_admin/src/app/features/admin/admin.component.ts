@@ -15,7 +15,8 @@ import {
 
 import {
   EmployeeItem,
-  UpdateUserRolesResponse
+  UpdateUserRolesResponse,
+  UpdateUserTeamResponse
 } from '../../core/models/admin.model';
 
 import {
@@ -27,6 +28,7 @@ import {
 } from '../../core/services/admin.services';
 import { CreateUserComponent } from './create-user.component';
 import { UpdateUserRolesComponent } from './update-user-roles.component';
+import { UpdateUserTeamComponent } from './update-user-team.component';
 
 
 @Component({
@@ -36,7 +38,8 @@ import { UpdateUserRolesComponent } from './update-user-roles.component';
   imports: [
     CommonModule,
     CreateUserComponent,
-    UpdateUserRolesComponent
+    UpdateUserRolesComponent,
+    UpdateUserTeamComponent
   ],
 
   template: `
@@ -318,10 +321,16 @@ import { UpdateUserRolesComponent } from './update-user-roles.component';
                   >
 
                     @if (canCreateUser()) {
+                    <button type="button" (click)="openTeamEditor(employee)"
+                      [disabled]="roleSaving() || teamSaving()"
+                      [attr.aria-expanded]="editingTeamEmployeeId() === employee.id"
+                      class="mr-2 rounded-lg border border-blue-600 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-60">
+                      Cập nhật team
+                    </button>
                     <button
                       type="button"
                       (click)="openRoleEditor(employee)"
-                      [disabled]="roleSaving()"
+                      [disabled]="roleSaving() || teamSaving()"
                       [attr.aria-expanded]="editingEmployeeId() === employee.id"
                       class="rounded-lg border
                              border-emerald-600
@@ -346,6 +355,16 @@ import { UpdateUserRolesComponent } from './update-user-roles.component';
                         (saved)="onRolesUpdated($event)"
                         (cancelled)="editingEmployeeId.set(null)"
                         (busy)="roleSaving.set($event)" />
+                    </td>
+                  </tr>
+                }
+                @if (editingTeamEmployeeId() === employee.id) {
+                  <tr>
+                    <td colspan="5" class="px-6 pb-5">
+                      <app-update-user-team [employee]="employee"
+                        (saved)="onTeamUpdated($event)"
+                        (cancelled)="editingTeamEmployeeId.set(null)"
+                        (busy)="teamSaving.set($event)" />
                     </td>
                   </tr>
                 }
@@ -388,9 +407,26 @@ export class AdminComponent
   readonly listError = signal('');
   readonly editingEmployeeId = signal<number | null>(null);
   readonly roleSaving = signal(false);
+  readonly editingTeamEmployeeId = signal<number | null>(null);
+  readonly teamSaving = signal(false);
+
+  openTeamEditor(employee: EmployeeItem): void {
+    if (this.roleSaving() || this.teamSaving()) return;
+    this.successMessage.set('');
+    this.editingEmployeeId.set(null);
+    this.editingTeamEmployeeId.set(this.editingTeamEmployeeId() === employee.id ? null : employee.id);
+  }
+
+  onTeamUpdated(response: UpdateUserTeamResponse): void {
+    this.employees.update(items => items.map(employee => employee.id === response.employeeId
+      ? { ...employee, teamId: response.teamId, teamName: response.teamName } : employee));
+    this.editingTeamEmployeeId.set(null);
+    this.successMessage.set('Cập nhật team thành công.');
+  }
 
   openRoleEditor(employee: EmployeeItem): void {
-    if (this.roleSaving()) return;
+    if (this.roleSaving() || this.teamSaving()) return;
+    this.editingTeamEmployeeId.set(null);
     this.successMessage.set('');
     this.editingEmployeeId.set(this.editingEmployeeId() === employee.id ? null : employee.id);
   }

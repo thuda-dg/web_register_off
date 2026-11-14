@@ -4,7 +4,8 @@ const {
   getAll,
   create,
   options,
-  updateRoles
+  updateRoles,
+  updateTeam
 } = require('../controllers/admin.controller');
 
 const {
@@ -17,6 +18,7 @@ const router = express.Router();
 router.get('/admin/users/options', authMiddleware, requireAdmin, options);
 router.post('/admin/users', authMiddleware, requireAdmin, create);
 router.patch('/admin/users/:employeeId/roles', authMiddleware, requireAdmin, updateRoles);
+router.patch('/admin/users/:employeeId/team', authMiddleware, requireAdmin, updateTeam);
 
 router.get(
   '/admin/getall',

@@ -46,3 +46,11 @@ export interface UpdateUserRolesResponse {
   employeeId: number;
   roles: EmployeeRole[];
 }
+
+export interface UpdateUserTeamResponse {
+  ok: boolean;
+  message: string;
+  employeeId: number;
+  teamId: number;
+  teamName: string;
+}
