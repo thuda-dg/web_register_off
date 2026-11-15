@@ -9,7 +9,9 @@ const {
   UserRole,
   Role,
   Team,
-  EmpTeamHistory
+  EmpTeamHistory,
+  Task,
+  EmpTaskHistory
 } = require('../models');
 
 const { hashPassword } = require('../utils/auth.util');
@@ -22,12 +24,14 @@ function invalid(message, statusCode = 400) {
 }
 
 async function getCreateUserOptions() {
-  const [teams, roles] = await Promise.all([
+  const [teams, roles, tasks] = await Promise.all([
     Team.findAll({ where: { is_active: true }, order: [['team_name', 'ASC']] }),
-    Role.findAll({ where: { is_active: true }, order: [['role_name', 'ASC']] })
+    Role.findAll({ where: { is_active: true }, order: [['role_name', 'ASC']] }),
+    Task.findAll({ where: { is_active: true }, order: [['task_name', 'ASC']] })
   ]);
   return {
     ok: true,
+    tasks: tasks.map(task => ({ id: Number(task.task_id), name: task.task_name })),
     teams: teams.map(team => ({ id: Number(team.team_id), name: team.team_name })),
     roles: roles.map(role => ({ id: Number(role.role_id), name: role.role_name, code: role.role_code }))
   };
@@ -223,6 +227,15 @@ async function getAllEmployees() {
       ],
 
       include: [
+        {
+          model: EmpTaskHistory, as: 'taskHistories', required: false,
+          attributes: ['emp_task_history_id', 'task_id', 'start_date', 'end_date'],
+          where: {
+            start_date: { [Op.lte]: today },
+            [Op.or]: [{ end_date: null }, { end_date: { [Op.gte]: today } }]
+          },
+          include: [{ model: Task, as: 'task', required: false, attributes: ['task_id', 'task_name'] }]
+        },
 
         // ============================================
         // CURRENT TEAM
@@ -404,6 +417,9 @@ async function getAllEmployees() {
             ? Number(currentTeam.team_id)
             : null,
 
+        taskId: employee.taskHistories?.[0]?.task ? Number(employee.taskHistories[0].task.task_id) : null,
+        taskName: employee.taskHistories?.[0]?.task?.task_name ?? null,
+
         teamName:
           currentTeam?.team_name ?? null,
 
@@ -429,11 +445,51 @@ async function getAllEmployees() {
   };
 }
 
+async function updateUserTask(employeeId, payload = {}) {
+  const id = Number(employeeId);
+  const { taskId } = payload;
+  if (!Number.isSafeInteger(id) || id <= 0 || !Number.isSafeInteger(taskId) || taskId <= 0) {
+    throw invalid('Vui lòng chọn một task hợp lệ.');
+  }
+  return sequelize.transaction(async transaction => {
+    // Lock the employee, including employees without a login account.
+    // Concurrent task changes for this employee must use the same lock.
+    const employee = await Employee.findOne({
+      where: { emp_id: id, is_active: true }, transaction, lock: transaction.LOCK.UPDATE
+    });
+    if (!employee) throw invalid('Không tìm thấy nhân viên đang hoạt động.', 404);
+    const task = await Task.findOne({ where: { task_id: taskId, is_active: true }, transaction });
+    if (!task) throw invalid('Task không tồn tại hoặc đã ngừng hoạt động.');
+    const now = new Date();
+    const today = now.toISOString().slice(0, 10);
+    const yesterday = new Date(now.getTime() - 86400000).toISOString().slice(0, 10);
+    const histories = await EmpTaskHistory.findAll({
+      where: {
+        emp_id: id,
+        [Op.or]: [{ end_date: null }, { end_date: { [Op.gte]: today } }]
+      }, transaction
+    });
+    if (histories.some(history => history.start_date > today)) {
+      const error = new Error('Nhân viên đã có lịch chuyển task trong tương lai. Vui lòng xử lý lịch đó trước khi đổi task hiện tại.');
+      throw Object.assign(error, { statusCode: 409, code: 'FUTURE_TASK_ASSIGNMENT' });
+    }
+    const retained = histories.find(history => Number(history.task_id) === taskId);
+    for (const history of histories) {
+      if (history === retained) continue;
+      // End dates are inclusive. Remove same-day assignments to avoid end < start.
+      if (history.start_date === today) await history.destroy({ transaction });
+      else await history.update({ end_date: yesterday }, { transaction });
+    }
+    if (retained) {
+      if (retained.end_date !== null) await retained.update({ end_date: null }, { transaction });
+    } else {
+      await EmpTaskHistory.create({ emp_id: id, task_id: taskId, start_date: today, end_date: null }, { transaction });
+    }
+    return {
+      ok: true, message: 'Cập nhật task thành công.', employeeId: id,
+      taskId: Number(task.task_id), taskName: task.task_name
+    };
+  });
+}
 
-module.exports = {
-  updateUserTeam,
-  updateUserRoles,
-  createUser,
-  getCreateUserOptions,
-  getAllEmployees
-};
+module.exports = { updateUserTask, updateUserTeam, updateUserRoles, createUser, getCreateUserOptions, getAllEmployees };

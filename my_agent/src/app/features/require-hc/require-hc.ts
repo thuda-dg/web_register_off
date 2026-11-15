@@ -1,6 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { finalize, Subscription } from 'rxjs';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import {RequireHcFilterOptions,RequireHcFiltersValue,RequireHcRow,RequireHcSummary} from '../../core/models/require-hc.models';
-import {RequireHcMockService} from '../../core/services/require-hc-mock';
+import {RequireHcService} from '../../core/services/require-hc.service';
 import {RequireHcSummaryComponent} from './components/require-hc-summary/require-hc-summary';
 import {RequireHcFiltersComponent} from './components/require-hc-filters/require-hc-filters';
 import {RequireHcTableComponent} from './components/require-hc-table/require-hc-table';
@@ -15,7 +16,8 @@ import {RequireHcTableComponent} from './components/require-hc-table/require-hc-
   ],
   templateUrl: './require-hc.html'
 })
-export class RequireHc implements OnInit {
+export class RequireHc implements OnInit, OnDestroy {
+  private request?: Subscription;
   loading = false;
   errorMessage = '';
 
@@ -25,14 +27,12 @@ export class RequireHc implements OnInit {
   filters: RequireHcFiltersValue = {
     cycle: '',
     task: '',
-    team: '',
     status: ''
   };
 
   filterOptions: RequireHcFilterOptions = {
     cycles: [],
     tasks: [],
-    teams: [],
     statuses: [
       'available',
       'full'
@@ -47,7 +47,8 @@ export class RequireHc implements OnInit {
   };
 
   constructor(
-    private readonly service: RequireHcMockService
+    private readonly service: RequireHcService,
+    private readonly cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -55,17 +56,18 @@ export class RequireHc implements OnInit {
   }
 
   loadRequireHc(): void {
+    if (this.loading) return;
     this.loading = true;
     this.errorMessage = '';
 
-    this.service
+    this.request = this.service
       .getRequireHc()
+      .pipe(finalize(() => { this.loading = false; this.cdr.markForCheck(); }))
       .subscribe({
         next: response => {
           this.loading = false;
 
           if (!response.ok) {
-            this.reset();
 
             this.errorMessage =
               response.msg ??
@@ -82,7 +84,6 @@ export class RequireHc implements OnInit {
 
         error: () => {
           this.loading = false;
-          this.reset();
 
           this.errorMessage =
             'Có lỗi xảy ra khi tải dữ liệu RequireHC.';
@@ -93,7 +94,7 @@ export class RequireHc implements OnInit {
   onFiltersChange(
     filters: RequireHcFiltersValue
   ): void {
-    this.filters = filters;
+    this.filters = { ...filters };
     this.applyFilters();
   }
 
@@ -107,10 +108,6 @@ export class RequireHc implements OnInit {
         !this.filters.task ||
         row.task === this.filters.task;
 
-      const matchesTeam =
-        !this.filters.team ||
-        row.team === this.filters.team;
-
       const matchesStatus =
         !this.filters.status ||
         (
@@ -122,7 +119,6 @@ export class RequireHc implements OnInit {
       return (
         matchesCycle &&
         matchesTask &&
-        matchesTeam &&
         matchesStatus
       );
     });
@@ -143,6 +139,7 @@ export class RequireHc implements OnInit {
         0
       )
     };
+    this.cdr.markForCheck();
   }
 
   private buildFilterOptions(): void {
@@ -155,6 +152,12 @@ export class RequireHc implements OnInit {
       );
     }
 
+    const previous = this.filterOptions;
+    if (this.filters.cycle && !cycleMap.has(this.filters.cycle)) {
+      cycleMap.set(this.filters.cycle, previous.cycles.find(option => option.value === this.filters.cycle)?.label || this.filters.cycle);
+    }
+    const tasks = new Set(this.allRows.map(row => row.task));
+    if (this.filters.task) tasks.add(this.filters.task);
     this.filterOptions = {
       cycles: [...cycleMap.entries()]
         .map(([value, label]) => ({
@@ -165,17 +168,7 @@ export class RequireHc implements OnInit {
           b.value.localeCompare(a.value)
         ),
 
-      tasks: [
-        ...new Set(
-          this.allRows.map(row => row.task)
-        )
-      ].sort(),
-
-      teams: [
-        ...new Set(
-          this.allRows.map(row => row.team)
-        )
-      ].sort(),
+      tasks: [...tasks].sort(),
 
       statuses: [
         'available',
@@ -184,25 +177,5 @@ export class RequireHc implements OnInit {
     };
   }
 
-  private reset(): void {
-    this.allRows = [];
-    this.filteredRows = [];
-
-    this.summary = {
-      totalDays: 0,
-      fullDays: 0,
-      availableDays: 0,
-      remainingSlots: 0
-    };
-
-    this.filterOptions = {
-      cycles: [],
-      tasks: [],
-      teams: [],
-      statuses: [
-        'available',
-        'full'
-      ]
-    };
-  }
+  ngOnDestroy(): void { this.request?.unsubscribe(); }
 }

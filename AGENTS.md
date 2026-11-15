@@ -5,7 +5,7 @@
 ## Bản đồ code
 
 - `backend`: Express 5, CommonJS, Sequelize 6/PostgreSQL. Luồng chính: routes → controllers → services → `src/models`.
-- `my_agent`: Angular 22 standalone, TypeScript 6, RxJS, Tailwind 4. Chức năng đăng ký/lịch sử nối API; published/RequireHC dùng mock.
+- `my_agent`: Angular 22 standalone, TypeScript 6, RxJS, Tailwind 4. Đăng ký, lịch sử, published và RequireHC đều nối API thật; các mock service cũ không phải nguồn dữ liệu của các route này.
 - `my_admin`: Angular 22 standalone. Danh sách nhân viên, tạo user, cập nhật role ngay trong danh sách.
 - Mỗi ứng dụng có dependency/lockfile riêng. Chạy npm từ đúng thư mục; không coi root là npm workspace.
 - `backend/src/models/index.js` là model registry runtime. `backend/models/index.js` là scaffold CLI. Không sửa nhầm hoặc đăng ký thêm model `User` cũ cho luồng auth hiện tại.

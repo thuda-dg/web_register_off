@@ -1,3 +1,4 @@
+import { finalize, Subscription } from 'rxjs';
 import {
   Component,
   OnInit,
@@ -31,7 +32,7 @@ import { HistoryTableComponent } from './components/history-table/history-table'
 export class History implements OnInit, OnDestroy {
   loading = false;
 
-  private loadingTimer?: ReturnType<typeof setTimeout>;
+  private historyRequest?: Subscription;
 
   errorMessage = '';
 
@@ -74,104 +75,33 @@ export class History implements OnInit, OnDestroy {
   }
 
   loadHistory(): void {
+    if (this.loading) return;
+    this.loading = true;
     this.errorMessage = '';
-
-    if (this.loadingTimer) {
-      clearTimeout(this.loadingTimer);
-    }
-
-    this.loadingTimer = setTimeout(() => {
-      this.loading = true;
-    }, 300);
-
-    this.registrationService.getMyRegistrationHistory().subscribe({
-      next: response => {
-        if (this.loadingTimer) {
-          clearTimeout(this.loadingTimer);
-        }
-
+    this.historyRequest = this.registrationService.getMyRegistrationHistory()
+      .pipe(finalize(() => {
         this.loading = false;
-
-        console.log('HISTORY RESPONSE', response);
-
-        if (!response.ok) {
-          this.resetHistory();
-
-          this.errorMessage = 'Không tải được lịch sử đăng ký.';
-
-          this.cdr.detectChanges();
-          return;
+        this.cdr.markForCheck();
+      }))
+      .subscribe({
+        next: response => {
+          if (!response.ok) {
+            this.errorMessage = response.message || 'Không tải được lịch sử đăng ký.';
+            return;
+          }
+          this.allRows = response.data?.rows ?? [];
+          this.summary = response.data?.summary ?? { total: 0, pending: 0, approved: 0, published: 0 };
+          this.buildFilterOptions();
+          this.applyFilters();
+        },
+        error: () => {
+          // Keep the previous rows, options and selection so a retry is possible.
+          this.errorMessage = 'Có lỗi xảy ra khi tải lịch sử đăng ký. Vui lòng thử làm mới.';
         }
-
-        /*
-         * SET DATA
-         */
-        this.allRows = response.data?.rows ?? [];
-
-        this.summary = response.data?.summary ?? {
-          total: 0,
-          pending: 0,
-          approved: 0,
-          published: 0
-        };
-
-        /*
-         * BUILD OPTION
-         */
-        this.buildFilterOptions();
-
-        /*
-         * DEFAULT FILTER ALL
-         */
-        this.filters = {
-          cycle: 'ALL',
-          type: 'ALL',
-          status: 'ALL'
-        };
-
-        /*
-         * DISPLAY ALL DATA
-         */
-        this.filteredRows = [...this.allRows];
-
-        console.log('INITIAL DATA', {
-          all: this.allRows.length,
-          filtered: this.filteredRows.length,
-          filters: this.filters
-        });
-
-        /*
-         * Angular 22 zoneless
-         * cần trigger CD
-         */
-        queueMicrotask(() => {
-          console.log('RUN CHANGE DETECTION');
-
-          this.cdr.detectChanges();
-        });
-      },
-
-      error: error => {
-        if (this.loadingTimer) {
-          clearTimeout(this.loadingTimer);
-        }
-
-        console.error('LOAD HISTORY ERROR', error);
-
-        this.loading = false;
-
-        this.resetHistory();
-
-        this.errorMessage = 'Có lỗi xảy ra khi tải lịch sử đăng ký.';
-
-        this.cdr.detectChanges();
-      }
-    });
+      });
   }
 
   onFiltersChange(filters: HistoryFiltersValue): void {
-    console.log('FILTER EVENT', filters);
-
     if (!filters) {
       return;
     }
@@ -207,9 +137,7 @@ export class History implements OnInit, OnDestroy {
       return cycleOK && typeOK && statusOK;
     });
 
-    console.log('FILTER RESULT', this.filteredRows.length);
-
-    this.cdr.detectChanges();
+    this.cdr.markForCheck();
   }
 
   private buildFilterOptions(): void {
@@ -219,58 +147,46 @@ export class History implements OnInit, OnDestroy {
       cycleMap.set(row.cycleKey, row.cycleLabel);
     });
 
+    const previous = this.filterOptions;
+    if (this.filters.cycle !== 'ALL' && !cycleMap.has(this.filters.cycle)) {
+      cycleMap.set(this.filters.cycle, previous.cycles.find(option => option.value === this.filters.cycle)?.label || this.filters.cycle);
+    }
+    const types = new Set(this.allRows.map(row => row.type));
+    const statuses = new Set(this.allRows.map(row => row.tlStatus));
+    if (this.filters.type !== 'ALL') types.add(this.filters.type);
+    if (this.filters.status !== 'ALL') statuses.add(this.filters.status);
     this.filterOptions = {
       cycles: [...cycleMap.entries()].map(([value, label]) => ({
         value,
         label
       })),
 
-      types: [
-        ...new Set(this.allRows.map(x => x.type))
-      ],
+      types: [...types],
 
-      statuses: [
-        ...new Set(this.allRows.map(x => x.tlStatus))
-      ].map(status => ({
+      statuses: [...statuses].map(status => ({
         value: status,
         label: this.getStatusLabel(status)
       }))
     };
   }
 
-  private resetHistory(): void {
-    this.allRows = [];
-
-    this.filteredRows = [];
-
-    this.summary = {
-      total: 0,
-      pending: 0,
-      approved: 0,
-      published: 0
-    };
-
-    this.filterOptions = {
-      cycles: [],
-      types: [],
-      statuses: []
-    };
-  }
-
   private getStatusLabel(status: string): string {
     const map: Record<string, string> = {
       PENDING_TL: 'Chờ TL duyệt',
+      APPROVED: 'TL đã duyệt',
       TL_APPROVED: 'TL đã duyệt',
+      REJECTED: 'TL từ chối',
       TL_REJECTED: 'TL từ chối',
-      PUBLIC: 'Đã public'
+      PUBLIC: 'Đã public',
+      PUBLISHED: 'Đã public',
+      UNPUBLISHED: 'Đã bỏ công bố',
+      CANCELLED: 'Đã hủy'
     };
 
     return map[status] ?? status;
   }
 
   ngOnDestroy(): void {
-    if (this.loadingTimer) {
-      clearTimeout(this.loadingTimer);
-    }
+    this.historyRequest?.unsubscribe();
   }
 }

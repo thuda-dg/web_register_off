@@ -1,9 +1,11 @@
 import { Component, Input } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import {PublishedScheduleRow} from '../../../../core/models/published-schedule.models';
 
 @Component({
   selector: 'app-published-table',
   standalone: true,
+  imports: [DatePipe],
   templateUrl: './published-table.html'
 })
 export class PublishedTable {

@@ -3,7 +3,8 @@ const {
   createUser,
   getCreateUserOptions,
   updateUserRoles,
-  updateUserTeam
+  updateUserTeam,
+  updateUserTask
 } = require('../services/admin.service'); 
 
 async function getAll(
@@ -25,6 +26,11 @@ async function getAll(
   }
 }
 module.exports = {
+  updateTask: async (req, res, next) => {
+    try {
+      res.json(await updateUserTask(req.params.employeeId, req.body || {}));
+    } catch (error) { next(error); }
+  },
   updateTeam: async (req, res, next) => {
     try {
       res.json(await updateUserTeam(req.params.employeeId, req.body || {}));

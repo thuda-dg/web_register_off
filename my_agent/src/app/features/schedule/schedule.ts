@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { finalize } from 'rxjs';
 import {
   Component,
   OnInit,
@@ -29,6 +30,7 @@ import {
 
 import {
   BootstrapData,
+  RegistrationSubmitRequest,
   RegistrationEntryRequest
 } from '../../core/models/registration.model';
 
@@ -154,6 +156,11 @@ export class Schedule implements OnInit {
   confirmOpen = false;
 
   submitting = false;
+  private confirmedRegistration: RegistrationSubmitRequest | null = null;
+
+  get editingLocked(): boolean {
+    return this.submitting || this.confirmOpen;
+  }
 
   errorMessage = '';
 
@@ -426,6 +433,7 @@ export class Schedule implements OnInit {
   toggleDate(
     cell: CalendarCell
   ): void {
+    if (this.editingLocked) return;
     if (
       !cell.day ||
       !cell.inRange ||
@@ -479,6 +487,7 @@ export class Schedule implements OnInit {
   removeDate(
     date: string
   ): void {
+    if (this.editingLocked) return;
     this.errorMessage = '';
 
     this.selectedDates =
@@ -511,6 +520,8 @@ export class Schedule implements OnInit {
   }
 
   submit(): void {
+    if (this.editingLocked) return;
+    this.confirmedRegistration = null;
     this.clearMessages();
 
     if (this.formClosed) {
@@ -599,6 +610,9 @@ export class Schedule implements OnInit {
     this.submitting =
       true;
 
+    const validatedCycleId = this.bootstrapData.cycle.cycleId;
+    const validatedEntries = entries.map(entry => ({ ...entry }));
+    const confirmationEntries = localEntries.map(entry => ({ ...entry }));
     this.registrationService
       .validateRegistration({
         cycleId:
@@ -608,6 +622,7 @@ export class Schedule implements OnInit {
 
         entries
       })
+      .pipe(finalize(() => { this.submitting = false; this.cdr.markForCheck(); }))
       .subscribe({
         next: response => {
           this.submitting =
@@ -624,7 +639,11 @@ export class Schedule implements OnInit {
           }
 
           this.pendingEntries =
-            localEntries;
+            confirmationEntries;
+          this.confirmedRegistration = {
+            cycleId: validatedCycleId,
+            entries: validatedEntries
+          };
 
           this.warnings = [];
 
@@ -633,6 +652,7 @@ export class Schedule implements OnInit {
 
           this.confirmOpen =
             true;
+          this.cdr.markForCheck();
         },
 
         error: error => {
@@ -668,6 +688,11 @@ export class Schedule implements OnInit {
   }
 
   doSubmit(): void {
+    if (this.submitting) return;
+    if (!this.confirmOpen || !this.confirmedRegistration?.entries.length) {
+      this.showError('Chưa có danh sách đã xác nhận. Vui lòng chọn ngày và đăng ký lại.');
+      return;
+    }
     if (
       !this.bootstrapData
     ) {
@@ -678,21 +703,17 @@ export class Schedule implements OnInit {
       return;
     }
 
-    const entries =
-      this.buildRegistrationPayload();
+    const payload: RegistrationSubmitRequest = {
+      cycleId: this.confirmedRegistration.cycleId,
+      entries: this.confirmedRegistration.entries.map(entry => ({ ...entry }))
+    };
 
     this.submitting =
       true;
 
     this.registrationService
-      .submitRegistration({
-        cycleId:
-          this.bootstrapData
-            .cycle
-            .cycleId,
-
-        entries
-      })
+      .submitRegistration(payload)
+      .pipe(finalize(() => { this.submitting = false; this.cdr.markForCheck(); }))
       .subscribe({
         next: response => {
           this.submitting =
@@ -715,6 +736,7 @@ export class Schedule implements OnInit {
           this.entryByDate = {};
 
           this.pendingEntries = [];
+          this.confirmedRegistration = null;
 
           // Reload bootstrap để cập nhật lại
           // balance, RequireHC, phase OFF và lịch đã đăng ký
@@ -727,6 +749,8 @@ export class Schedule implements OnInit {
 
           this.confirmOpen =
             false;
+          this.confirmedRegistration = null;
+          this.pendingEntries = [];
 
           const validationErrors =
             error
@@ -766,6 +790,8 @@ export class Schedule implements OnInit {
 
     this.pendingEntries =
       [];
+    this.confirmedRegistration = null;
+    this.cdr.markForCheck();
   }
 
   logout(): void {
@@ -1013,6 +1039,7 @@ export class Schedule implements OnInit {
   ): void {
     this.errorMessage =
       message;
+    this.cdr.markForCheck();
   }
 
   private showValidationErrors(

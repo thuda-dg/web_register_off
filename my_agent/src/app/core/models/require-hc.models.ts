@@ -6,7 +6,7 @@ export interface RequireHcRow {
   dateVN: string;
   dayName: string;
   task: string;
-  team: string;
+  team?: string; // Legacy mock only; real capacity is shared across teams by task.
   maxOff: number;
   registeredOff: number;
   remainingSlot: number;
@@ -23,7 +23,6 @@ export interface RequireHcSummary {
 export interface RequireHcFiltersValue {
   cycle: string;
   task: string;
-  team: string;
   status: string;
 }
 
@@ -34,7 +33,6 @@ export interface RequireHcFilterOptions {
   }>;
 
   tasks: string[];
-  teams: string[];
   statuses: string[];
 }
 

@@ -16,7 +16,8 @@ import {
 import {
   EmployeeItem,
   UpdateUserRolesResponse,
-  UpdateUserTeamResponse
+  UpdateUserTeamResponse,
+  UpdateUserTaskResponse
 } from '../../core/models/admin.model';
 
 import {
@@ -29,6 +30,7 @@ import {
 import { CreateUserComponent } from './create-user.component';
 import { UpdateUserRolesComponent } from './update-user-roles.component';
 import { UpdateUserTeamComponent } from './update-user-team.component';
+import { UpdateUserTaskComponent } from './update-user-task.component';
 
 
 @Component({
@@ -39,7 +41,8 @@ import { UpdateUserTeamComponent } from './update-user-team.component';
     CommonModule,
     CreateUserComponent,
     UpdateUserRolesComponent,
-    UpdateUserTeamComponent
+    UpdateUserTeamComponent,
+    UpdateUserTaskComponent
   ],
 
   template: `
@@ -186,6 +189,8 @@ import { UpdateUserTeamComponent } from './update-user-team.component';
                   Team
                 </th>
 
+                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Task</th>
+
                 <th
                   class="px-6 py-3 text-left
                          text-xs font-semibold
@@ -273,6 +278,8 @@ import { UpdateUserTeamComponent } from './update-user-team.component';
                   </td>
 
 
+                  <td class="whitespace-nowrap px-6 py-4 text-sm">{{ employee.taskName || 'Chưa có task' }}</td>
+
                   <!-- ROLES -->
                   <td
                     class="px-6 py-4"
@@ -321,8 +328,14 @@ import { UpdateUserTeamComponent } from './update-user-team.component';
                   >
 
                     @if (canCreateUser()) {
+                    <button type="button" (click)="openTaskEditor(employee)"
+                      [disabled]="roleSaving() || teamSaving() || taskSaving()"
+                      [attr.aria-expanded]="editingTaskEmployeeId() === employee.id"
+                      class="mr-2 rounded-lg border border-blue-600 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-60">
+                      Cập nhật task
+                    </button>
                     <button type="button" (click)="openTeamEditor(employee)"
-                      [disabled]="roleSaving() || teamSaving()"
+                      [disabled]="roleSaving() || teamSaving() || taskSaving()"
                       [attr.aria-expanded]="editingTeamEmployeeId() === employee.id"
                       class="mr-2 rounded-lg border border-blue-600 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-50 disabled:opacity-60">
                       Cập nhật team
@@ -330,7 +343,7 @@ import { UpdateUserTeamComponent } from './update-user-team.component';
                     <button
                       type="button"
                       (click)="openRoleEditor(employee)"
-                      [disabled]="roleSaving() || teamSaving()"
+                      [disabled]="roleSaving() || teamSaving() || taskSaving()"
                       [attr.aria-expanded]="editingEmployeeId() === employee.id"
                       class="rounded-lg border
                              border-emerald-600
@@ -350,7 +363,7 @@ import { UpdateUserTeamComponent } from './update-user-team.component';
 
                 @if (editingEmployeeId() === employee.id) {
                   <tr>
-                    <td colspan="5" class="px-6 pb-5">
+                    <td colspan="6" class="px-6 pb-5">
                       <app-update-user-roles [employee]="employee"
                         (saved)="onRolesUpdated($event)"
                         (cancelled)="editingEmployeeId.set(null)"
@@ -360,11 +373,21 @@ import { UpdateUserTeamComponent } from './update-user-team.component';
                 }
                 @if (editingTeamEmployeeId() === employee.id) {
                   <tr>
-                    <td colspan="5" class="px-6 pb-5">
+                    <td colspan="6" class="px-6 pb-5">
                       <app-update-user-team [employee]="employee"
                         (saved)="onTeamUpdated($event)"
                         (cancelled)="editingTeamEmployeeId.set(null)"
                         (busy)="teamSaving.set($event)" />
+                    </td>
+                  </tr>
+                }
+                @if (editingTaskEmployeeId() === employee.id) {
+                  <tr>
+                    <td colspan="6" class="px-6 pb-5">
+                      <app-update-user-task [employee]="employee"
+                        (saved)="onTaskUpdated($event)"
+                        (cancelled)="editingTaskEmployeeId.set(null)"
+                        (busy)="taskSaving.set($event)" />
                     </td>
                   </tr>
                 }
@@ -375,7 +398,7 @@ import { UpdateUserTeamComponent } from './update-user-team.component';
                 <tr>
 
                   <td
-                    colspan="5"
+                    colspan="6"
                     class="px-6 py-10 text-center
                            text-sm text-slate-500"
                   >
@@ -409,9 +432,27 @@ export class AdminComponent
   readonly roleSaving = signal(false);
   readonly editingTeamEmployeeId = signal<number | null>(null);
   readonly teamSaving = signal(false);
+  readonly editingTaskEmployeeId = signal<number | null>(null);
+  readonly taskSaving = signal(false);
+
+  openTaskEditor(employee: EmployeeItem): void {
+    if (this.roleSaving() || this.teamSaving() || this.taskSaving()) return;
+    this.successMessage.set('');
+    this.editingEmployeeId.set(null);
+    this.editingTeamEmployeeId.set(null);
+    this.editingTaskEmployeeId.set(this.editingTaskEmployeeId() === employee.id ? null : employee.id);
+  }
+
+  onTaskUpdated(response: UpdateUserTaskResponse): void {
+    this.employees.update(items => items.map(employee => employee.id === response.employeeId
+      ? { ...employee, taskId: response.taskId, taskName: response.taskName } : employee));
+    this.editingTaskEmployeeId.set(null);
+    this.successMessage.set('Cập nhật task thành công.');
+  }
 
   openTeamEditor(employee: EmployeeItem): void {
-    if (this.roleSaving() || this.teamSaving()) return;
+    if (this.roleSaving() || this.teamSaving() || this.taskSaving()) return;
+    this.editingTaskEmployeeId.set(null);
     this.successMessage.set('');
     this.editingEmployeeId.set(null);
     this.editingTeamEmployeeId.set(this.editingTeamEmployeeId() === employee.id ? null : employee.id);
@@ -425,7 +466,8 @@ export class AdminComponent
   }
 
   openRoleEditor(employee: EmployeeItem): void {
-    if (this.roleSaving() || this.teamSaving()) return;
+    if (this.roleSaving() || this.teamSaving() || this.taskSaving()) return;
+    this.editingTaskEmployeeId.set(null);
     this.editingTeamEmployeeId.set(null);
     this.successMessage.set('');
     this.editingEmployeeId.set(this.editingEmployeeId() === employee.id ? null : employee.id);

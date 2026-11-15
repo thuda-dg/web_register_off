@@ -10,6 +10,7 @@ import { LeaveType, RegistrationEntry } from '../../../../core/models/wfm.models
   templateUrl: './selected-date-list.html',
 })
 export class SelectedDateList {
+  @Input() disabled = false;
   @Input() selectedDates: string[] = [];
   @Input() entries: Record<string, RegistrationEntry> = {};
   @Input() leaveTypes: LeaveType[] = [];

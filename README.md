@@ -22,12 +22,13 @@ Tài liệu chi tiết: [Backend](backend/README.md), [My Agent](my_agent/README
 | Quên/đặt lại mật khẩu | Có API; gửi email hướng dẫn vẫn là TODO |
 | Bootstrap, validate, submit lịch nghỉ | API thật; giao diện `/schedule` đang gọi API |
 | Lịch sử đăng ký của bản thân | `/history` gọi API thật |
-| Lịch đã chốt `/published` | Dùng `PublishedScheduleMockService` |
-| RequireHC `/require-hc` | Dùng `RequireHcMockService`; dữ liệu capacity trong bootstrap đăng ký là từ database |
+| Lịch đã chốt `/published` | API thật `GET /api/registration/published`, chỉ entry active có trạng thái PUBLISHED |
+| RequireHC `/require-hc` | API thật `GET /api/registration/require-hc`; capacity và số OFF đã đăng ký theo kỳ/ngày/task |
 | Danh sách nhân viên ở admin | API thật, lấy nhân viên đang active, team hiện tại và role theo thời hạn |
 | Tạo nhân viên kèm tài khoản | API thật, yêu cầu ADMIN; chưa tự tạo task assignment hay số dư phép/OFF |
 | Cập nhật nhiều role cho user | API thật, yêu cầu ADMIN; chọn ngay dưới từng dòng trong danh sách |
 | Cập nhật team cho nhân viên | API thật, yêu cầu ADMIN; dropdown chọn một team, lưu lịch sử chuyển team |
+| Cập nhật task cho nhân viên | API thật, yêu cầu ADMIN; dropdown chọn một task, lưu lịch sử chuyển task |
 | Duyệt TL / công bố lịch | Chưa có route API được mount để thực hiện; không coi các hàm mock là chức năng production |
 
 ## Chạy local

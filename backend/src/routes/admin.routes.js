@@ -5,7 +5,8 @@ const {
   create,
   options,
   updateRoles,
-  updateTeam
+  updateTeam,
+  updateTask
 } = require('../controllers/admin.controller');
 
 const {
@@ -19,6 +20,7 @@ router.get('/admin/users/options', authMiddleware, requireAdmin, options);
 router.post('/admin/users', authMiddleware, requireAdmin, create);
 router.patch('/admin/users/:employeeId/roles', authMiddleware, requireAdmin, updateRoles);
 router.patch('/admin/users/:employeeId/team', authMiddleware, requireAdmin, updateTeam);
+router.patch('/admin/users/:employeeId/task', authMiddleware, requireAdmin, updateTask);
 
 router.get(
   '/admin/getall',

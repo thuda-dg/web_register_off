@@ -1,6 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { finalize, Subscription } from 'rxjs';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import {PublishedScheduleFilterOptions,PublishedScheduleFiltersValue,PublishedScheduleRow,PublishedScheduleSummary} from '../../core/models/published-schedule.models';
-import {PublishedScheduleMockService} from '../../core/services/published-schedule-mock';
+import {PublishedScheduleService} from '../../core/services/published-schedule.service';
 import {PublishedFilters} from './components/published-filters/published-filters';
 import {PublishedSummary} from './components/published-summary/published-summary';
 import {PublishedTable} from './components/published-table/published-table';
@@ -15,7 +16,8 @@ import {PublishedTable} from './components/published-table/published-table';
   ],
   templateUrl: './published-schedule.html'
 })
-export class PublishedSchedule implements OnInit {
+export class PublishedSchedule implements OnInit, OnDestroy {
+  private request?: Subscription;
   loading = false;
   errorMessage = '';
 
@@ -42,7 +44,8 @@ export class PublishedSchedule implements OnInit {
   };
 
   constructor(
-    private readonly service: PublishedScheduleMockService
+    private readonly service: PublishedScheduleService,
+    private readonly cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -50,17 +53,18 @@ export class PublishedSchedule implements OnInit {
   }
 
   loadPublishedSchedule(): void {
+    if (this.loading) return;
     this.loading = true;
     this.errorMessage = '';
 
-    this.service
+    this.request = this.service
       .getPublishedSchedule()
+      .pipe(finalize(() => { this.loading = false; this.cdr.markForCheck(); }))
       .subscribe({
         next: response => {
           this.loading = false;
 
           if (!response.ok) {
-            this.reset();
 
             this.errorMessage =
               response.msg ??
@@ -77,7 +81,6 @@ export class PublishedSchedule implements OnInit {
 
         error: () => {
           this.loading = false;
-          this.reset();
 
           this.errorMessage =
             'Có lỗi xảy ra khi tải lịch nghỉ đã chốt.';
@@ -88,7 +91,7 @@ export class PublishedSchedule implements OnInit {
   onFiltersChange(
     filters: PublishedScheduleFiltersValue
   ): void {
-    this.filters = filters;
+    this.filters = { ...filters };
     this.applyFilters();
   }
 
@@ -126,6 +129,7 @@ export class PublishedSchedule implements OnInit {
 
       shown: this.filteredRows.length
     };
+    this.cdr.markForCheck();
   }
 
   private buildFilterOptions(): void {
@@ -138,6 +142,14 @@ export class PublishedSchedule implements OnInit {
       );
     }
 
+    const previous = this.filterOptions;
+    if (this.filters.cycle && !cycleMap.has(this.filters.cycle)) {
+      cycleMap.set(this.filters.cycle, previous.cycles.find(option => option.value === this.filters.cycle)?.label || this.filters.cycle);
+    }
+    const teams = new Set(this.allRows.map(row => row.team));
+    const types = new Set(this.allRows.map(row => row.type));
+    if (this.filters.team) teams.add(this.filters.team);
+    if (this.filters.type) types.add(this.filters.type);
     this.filterOptions = {
       cycles: [...cycleMap.entries()]
         .map(([value, label]) => ({
@@ -148,35 +160,11 @@ export class PublishedSchedule implements OnInit {
           b.value.localeCompare(a.value)
         ),
 
-      teams: [
-        ...new Set(
-          this.allRows.map(row => row.team)
-        )
-      ].sort(),
+      teams: [...teams].sort(),
 
-      types: [
-        ...new Set(
-          this.allRows.map(row => row.type)
-        )
-      ].sort()
+      types: [...types].sort()
     };
   }
 
-  private reset(): void {
-    this.allRows = [];
-    this.filteredRows = [];
-
-    this.filterOptions = {
-      cycles: [],
-      teams: [],
-      types: []
-    };
-
-    this.summary = {
-      total: 0,
-      teams: 0,
-      cycles: 0,
-      shown: 0
-    };
-  }
+  ngOnDestroy(): void { this.request?.unsubscribe(); }
 }

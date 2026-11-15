@@ -9,7 +9,7 @@ export interface PublishedScheduleRow {
   dateVN: string;
   type: string;
   reason: string;
-  publishedAt: string;
+  publishedAt: string | null;
 }
 
 export interface PublishedScheduleSummary {

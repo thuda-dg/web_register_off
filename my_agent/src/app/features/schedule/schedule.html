@@ -160,6 +160,7 @@
   >
 
     <app-leave-calendar
+      [disabled]="editingLocked"
       [cells]="calendarCells"
       [monthOptions]="monthOptions"
       [currentMonthValue]="currentMonthValue"
@@ -215,6 +216,7 @@
       </div>
 
       <app-selected-date-list
+        [disabled]="editingLocked"
         [selectedDates]="selectedDates"
         [entries]="entryByDate"
         [leaveTypes]="typesShown"
@@ -242,7 +244,7 @@
         class="w-full rounded-lg bg-emerald-500 px-4 py-3 font-bold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-emerald-200"
         [disabled]="
           !selectedDates.length ||
-          submitting
+          editingLocked
         "
         (click)="submit()"
       >

@@ -25,12 +25,12 @@ Mở [localhost:4200](http://localhost:4200). Backend mặc định tại `http:
 | `/register` | Tự đăng ký tài khoản EMPLOYEE | API auth công khai |
 | `/schedule` | Xem kỳ, chọn ngày/loại nghỉ/lý do, xác nhận và gửi | API registration |
 | `/history` | Lịch sử cá nhân, lọc kỳ/loại/trạng thái | API registration/history |
-| `/published` | Lịch nghỉ đã chốt, bộ lọc và thống kê | PublishedScheduleMockService |
-| `/require-hc` | Bảng capacity, bộ lọc và thống kê | RequireHcMockService |
+| `/published` | Lịch nghỉ đã chốt, bộ lọc và thống kê | API registration/published |
+| `/require-hc` | Bảng capacity, bộ lọc và thống kê | API registration/require-hc |
 
 Các trang trong MainLayout được bảo vệ bằng AuthGuard. Trang gốc chuyển tới `/schedule`. Component `home` tồn tại nhưng không phải route hiện hành.
 
-RequireHC trong màn hình đăng ký lấy từ bootstrap API thật, khác với trang bảng `/require-hc` đang dùng mock. Không dùng dữ liệu mock để kết luận số dư hoặc slot còn lại trong database.
+RequireHC trên trang đăng ký lấy từ bootstrap; bảng `/require-hc` gọi API riêng và dùng cùng quy tắc đếm OFF từ database. Hạn mức theo task được dùng chung giữa các team.
 
 ## Luồng đăng ký
 
@@ -38,6 +38,9 @@ RequireHC trong màn hình đăng ký lấy từ bootstrap API thật, khác v�
 2. Schedule gọi bootstrap để lấy employee, team/task, kỳ, loại nghỉ, lý do, số dư và RequireHC.
 3. User chọn ngày và loại nghỉ; loại cần lý do phải chọn lý do tương ứng.
 4. Client gửi validate, sau đó submit. Backend kiểm tra lại trong transaction trước khi lưu.
+   Trong lúc validate, xác nhận modal và submit, các nút chọn/xóa ngày và loại/lý do
+   nghỉ bị khóa. Submit dùng đúng bản dữ liệu đã validate, không dựng lại từ danh
+   sách đang chỉnh sửa; hủy modal sẽ bỏ bản xác nhận đó.
 5. Lịch đã lưu được xem qua trang history.
 
 User mới cần thêm dữ liệu nghiệp vụ: team/task assignment theo hiệu lực, kỳ đăng ký, số dư OFF/AL và RequireHC. Chỉ có tài khoản đăng nhập chưa đủ để sử dụng trọn luồng.
@@ -74,7 +77,49 @@ npm run serve:ssr:my_agent
 
 ## Phần chưa hoàn chỉnh
 
+Trang `/history` lọc trực tiếp dữ liệu đã tải theo cả kỳ, loại nghỉ và trạng thái
+(kết hợp AND). **Làm mới** gọi lại API và giữ nguyên lựa chọn, kể cả khi kết quả mới
+không còn dòng phù hợp; chọn **Tất cả** để bỏ điều kiện tương ứng. Lỗi refresh không
+xóa dữ liệu/bộ lọc trước đó. Các ô thống kê phản ánh toàn bộ lịch sử từ API, không
+thay đổi theo bộ lọc của bảng. Test backend thống kê: `node --test src/test-history-summary.js`.
+
 - Client có `getMyEntries()` gọi `/api/registration/my-entries`, nhưng backend chưa mount endpoint tương ứng. Đừng nhầm với `/history` đã có API.
 - `core/services/wfm-api.service.ts` và `app/wfm-api.service.ts` đều là service mẫu; kiểm tra import của component trước khi sửa.
-- Published schedule và bảng RequireHC chưa nối API thật; các hàm duyệt/công bố trong service mẫu không chứng minh backend có chức năng đó.
+- Published schedule và RequireHC đã gọi API đọc dữ liệu thật; các hàm duyệt/công bố trong service mẫu chưa phải API thay đổi trạng thái.
 - Quy tắc giao diện và backend có thể khác nhau; validator backend quyết định dữ liệu có được lưu hay không. Đặc biệt rule OFF trước có service riêng nhưng chưa nằm trong validator backend chính.
+
+## Lịch đã công bố
+
+Trang /published dùng PublishedScheduleService gọi GET /api/registration/published
+qua HttpClient và auth interceptor. API yêu cầu đăng nhập, trả lịch đã công bố của
+tất cả các team, không chỉ lịch của bản thân. Chỉ lấy entry is_active=true và
+current_status=PUBLISHED; không lấy PENDING_TL, APPROVED hoặc UNPUBLISHED.
+Nếu chưa có lịch công bố thì danh sách rỗng; không quay lại dữ liệu mock.
+
+Kỳ/team/loại nghỉ lọc tại frontend theo AND. Làm mới gọi API và giữ bộ lọc, kể cả
+khi kết quả rỗng hoặc lỗi mạng. Ba thống kê đầu tính trên toàn bộ dữ liệu đã tải,
+Đang hiển thị tính trên kết quả lọc. Thời điểm công bố lấy action PUBLISHED mới
+nhất, hiển thị giờ +07; thiếu action thì hiện dấu gạch ngang, không lấy ngày gửi thay thế.
+
+Chức năng này chỉ đọc, chưa bổ sung duyệt/công bố đơn. Không cần migration mới.
+Test: npm test -- --watch=false --include=src/app/features/published-schedule/published-schedule.spec.ts
+
+## RequireHC
+
+RequireHcService gọi GET /api/registration/require-hc qua HttpClient và auth
+interceptor. API chỉ đọc, yêu cầu đăng nhập và trả capacity của tất cả các kỳ/task.
+Mỗi dòng là một kỳ/ngày/task từ require_hc. Bảng DB không có team_id, nên UI không
+có cột/filter Team và không nhân capacity cho từng team.
+
+Đã đăng ký đếm các entry OFF active theo cùng kỳ/ngày/task, trạng thái PENDING_TL,
+APPROVED, PUBLISHED, UNPUBLISHED. Còn lại=max(maxOff-registeredOff,0); full khi
+registeredOff>=maxOff, kể cả maxOff=0. Không có cấu hình capacity thì không tạo
+ra dòng giả. Các kỳ cũ vẫn được hiển thị và có thể lọc theo kỳ.
+
+Bộ lọc Kỳ/Task/Trạng thái slot kết hợp AND, thực hiện tại frontend. Làm mới gọi lại
+API và giữ lựa chọn, kể cả khi kết quả mới rỗng hoặc lỗi mạng. Thống kê tính trên
+toàn bộ dữ liệu đã tải; một ngày có nhiều task tương ứng nhiều dòng. Không cần
+migration hoặc seed dữ liệu để sử dụng API.
+
+Test frontend: npm test -- --watch=false --include=src/app/features/require-hc/require-hc.spec.ts
+Test backend trong backend: node --test src/test-require-hc.js

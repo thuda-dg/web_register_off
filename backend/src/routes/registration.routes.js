@@ -1,10 +1,12 @@
 const express = require('express');
-const {bootstrap, validate, submitRegistrationController,getMyRegistrationEntriesController} = require('../controllers/registration.controller');
+const {bootstrap, validate, submitRegistrationController,getMyRegistrationEntriesController, published, requireHc} = require('../controllers/registration.controller');
 const {authMiddleware} = require('../middleware/auth.middleware');
 const router = express.Router();
 
 // Xác thực user cho tất cả API registration
 router.use(authMiddleware);
+router.get('/published', published);
+router.get('/require-hc', requireHc);
 
 // Lấy dữ liệu ban đầu cho màn hình đăng ký
 router.get('/bootstrap',bootstrap);

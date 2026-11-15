@@ -73,7 +73,7 @@
           </td>
 
           <td class="whitespace-nowrap px-3 py-3">
-            {{ row.publishedAt || '—' }}
+            {{ row.publishedAt ? (row.publishedAt | date:'dd/MM/yyyy HH:mm':'+0700') : '—' }}
           </td>
         </tr>
       }

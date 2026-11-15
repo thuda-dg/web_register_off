@@ -10,6 +10,7 @@ import { CalendarCell } from '../../../../core/models/wfm.models';
   templateUrl: './leave-calendar.html',
 })
 export class LeaveCalendar {
+  @Input() disabled = false;
   @Input() cells: CalendarCell[] = [];
   @Input() monthOptions: Array<{ value: string; label: string }> = [];
   @Input() currentMonthValue = '';

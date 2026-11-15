@@ -53,11 +53,14 @@ Prefix chung: `/api`. Endpoint cần phiên dùng `Authorization: Bearer <access
 | POST | `/registration/validate` | Đăng nhập; kiểm tra `cycleId`, `entries` |
 | POST | `/registration/submit` | Đăng nhập; validate lại rồi lưu trong transaction |
 | GET | `/registration/history` | Đăng nhập; lịch sử của `empId` trong JWT |
+| GET | `/registration/published` | Đăng nhập; lịch PUBLISHED đang active của tất cả các team |
+| GET | `/registration/require-hc` | Đăng nhập; capacity và số OFF đang chiếm slot theo kỳ/ngày/task |
 | GET | `/admin/getall` | Đăng nhập; hiện chưa yêu cầu ADMIN |
 | GET | `/admin/users/options` | ADMIN từ DB; team/role active |
 | POST | `/admin/users` | ADMIN từ DB; tạo employee, account, role và team tùy chọn |
 | PATCH | `/admin/users/:employeeId/roles` | ADMIN từ DB; thay danh sách role hiện tại |
 | PATCH | `/admin/users/:employeeId/team` | ADMIN từ DB; gán một team active cho nhân viên |
+| PATCH | `/admin/users/:employeeId/task` | ADMIN từ DB; gán một task active cho nhân viên |
 
 Không thêm vào tài liệu API hoạt động chỉ vì thấy một file router hoặc method client: `/registration/my-entries`, calendar/leave-reasons và luồng duyệt/công bố chưa có trong tập route được mount.
 
@@ -126,6 +129,13 @@ DO UPDATE SET end_date = NULL;
 
 ## Cập nhật team nhân viên
 
+Task được cập nhật tương tự team qua `PATCH /api/admin/users/:employeeId/task`,
+body `{ "taskId": 1 }`. Service `updateUserTask` khóa employee, yêu cầu task active,
+giữ lịch sử `emp_task_histories`, thay assignment cùng ngày và từ chối lịch chuyển
+task tương lai bằng `FUTURE_TASK_ASSIGNMENT` (409). Mỗi lần cập nhật chỉ giữ một
+task hiện tại; không sửa snapshot đăng ký cũ. Options trả thêm danh sách `tasks`,
+danh sách nhân viên trả `taskId`/`taskName`. Test: `node --test src/test-admin-task.js`.
+
 `PATCH /api/admin/users/:employeeId/team` nhận `{ "teamId": 2 }`. API yêu cầu ADMIN,
 employee active và team active. Khóa hàng employee trong transaction, kết thúc các
 assignment cũ vào hôm trước và gán đúng một team từ hôm nay. Assignment cùng ngày
@@ -165,3 +175,22 @@ node --test src/test-admin-user.js
 Đây là test tự động với model được stub cho tạo user, validation, role history, rollback và phân quyền. Không xác nhận được schema thật hay SQL transaction trên PostgreSQL.
 
 `npm test` hiện chưa cấu hình. Các `src/test-*.js` khác là script kiểm tra từng rule/model, thường dùng employee/cycle/ngày cố định. Đọc từng file trước khi chạy trên database thử riêng; đặc biệt `test-registration-submit.js` ghi dữ liệu. Không có bộ integration/e2e tự động đầy đủ trong repo.
+
+## API đọc lịch công bố
+
+GET /api/registration/published nằm sau authMiddleware. Trả {ok:true, rows:[...]}
+theo DTO PublishedScheduleResponse. Đọc entries PUBLISHED active, join submission,
+employee, cycle, team theo entry snapshot, leave type và lý do. Không trả email,
+token hay thông tin tài khoản. Thời điểm công bố lấy action PUBLISHED mới nhất;
+nếu thiếu action thì publishedAt=null. API không duyệt/công bố hay thay đổi DB.
+Tất cả user đăng nhập có thể xem lịch đã công bố của các team, phù hợp trang lịch chung.
+Test stub model: node --test src/test-published-schedule.js.
+
+## API đọc RequireHC
+
+GET /api/registration/require-hc nằm sau authMiddleware. Trả {ok:true,rows:[...]}
+theo DTO RequireHcResponse cho user đã đăng nhập. Lấy require_hc join cycle/task,
+sau đó tổng hợp COUNT(entry_id) theo submission.cycle_id, entry.task_id và
+entry.leave_date. Chỉ đếm OFF active ở ACTIVE_BALANCE_STATUSES; cùng quy tắc slot
+với bootstrap. Không lọc nhân viên/team, không nhân bản capacity theo team.
+Không thay đổi DB, không cần migration. Test: node --test src/test-require-hc.js.

@@ -7,7 +7,6 @@
       "name": "Debug Backend",
       "program": "${workspaceFolder}/backend/src/server.js",
       "cwd": "${workspaceFolder}/backend",
-      "runtimeExecutable": "/Users/admin/.nvm/versions/node/v22.22.3/bin/node",
       "console": "integratedTerminal",
       "skipFiles": [
         "<node_internals>/**"

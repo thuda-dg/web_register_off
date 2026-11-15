@@ -66,6 +66,25 @@ Nếu có lịch chuyển team trong tương lai, API báo lỗi để xử lý 
 
 Không cần migration mới. Chức năng này không thiết lập task hoặc số dư phép.
 
+## Cập nhật task
+
+ADMIN chọn **Cập nhật task** trên dòng nhân viên, chọn đúng một task active rồi bấm
+**Lưu task** hoặc **Hủy**. Cột Task cập nhật ngay sau khi lưu. Có thể gán task cho
+nhân viên chưa có task hoặc chưa có tài khoản đăng nhập.
+
+Thay đổi có hiệu lực từ hôm nay, lưu trong `emp_task_histories`: kết thúc assignment
+cũ vào hôm trước, xử lý lần gán cùng ngày và khóa employee trong transaction để
+không tạo nhiều task hiện tại. Nếu có lịch chuyển task tương lai, API trả lỗi 409
+để xử lý lịch đó trước. Không sửa snapshot các đăng ký đã lưu, không cần migration.
+
+API: `PATCH /api/admin/users/:employeeId/task`, body `{ "taskId": 1 }`, yêu cầu ADMIN.
+Options API trả thêm `tasks`; API danh sách trả thêm `taskId`, `taskName`.
+Test backend: `node --test src/test-admin-task.js` trong `backend`.
+
+Lưu ý: gán task hôm nay không bổ sung hiệu lực cho ngày trước đó. Bootstrap đăng ký
+vẫn yêu cầu team/task có hiệu lực vào ngày bắt đầu kỳ. Số dư OFF và RequireHC phải
+được thiết lập riêng để đăng ký OFF.
+
 ## API được dùng
 
 | Method | Đường dẫn | Quyền |

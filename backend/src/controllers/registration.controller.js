@@ -2,6 +2,19 @@ const { getRegistrationBootstrap } = require('../services/registration-bootstrap
 const { validateRegistration } = require('../services/registration-validation.service');
 const { submitRegistration } = require('../services/registration-submit.service');
 const { getMyRegistrationEntries } = require('../services/registration-history.service');
+const { getPublishedSchedule } = require('../services/published-schedule.service');
+const { getRequireHc } = require('../services/require-hc.service');
+
+async function requireHc(req, res, next) {
+  try { return res.status(200).json(await getRequireHc()); }
+  catch (error) { next(error); }
+}
+
+async function published(req, res, next) {
+  try {
+    return res.status(200).json(await getPublishedSchedule());
+  } catch (error) { next(error); }
+}
 
 // Lấy empId từ user đã đăng nhập
 function getAuthenticatedEmpId(req) {
@@ -232,6 +245,8 @@ async function getMyRegistrationEntriesController(req,res) {
 
 
 module.exports = {
+  requireHc,
+  published,
   bootstrap,
   validate,
   submitRegistrationController,

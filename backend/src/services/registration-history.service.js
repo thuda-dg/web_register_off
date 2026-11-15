@@ -130,11 +130,11 @@ async function getMyRegistrationEntries({
       ).length,
     approved:
       rows.filter(
-        x => x.tlStatus === 'TL_APPROVED'
+        x => ['APPROVED', 'TL_APPROVED'].includes(x.tlStatus)
       ).length,
     published:
       rows.filter(
-        x => x.tlStatus === 'PUBLIC'
+        x => ['PUBLISHED', 'PUBLIC'].includes(x.tlStatus)
       ).length
 
   };

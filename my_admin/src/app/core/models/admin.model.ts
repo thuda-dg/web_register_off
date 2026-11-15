@@ -11,6 +11,8 @@ export interface EmployeeItem {
 
   teamId: number | null;
   teamName: string | null;
+  taskId?: number | null;
+  taskName?: string | null;
 
   roles: EmployeeRole[];
 }
@@ -31,6 +33,7 @@ export interface CreateUserRequest {
 export interface CreateUserOptions {
   ok: boolean;
   teams: EmployeeRole[];
+  tasks?: EmployeeRole[];
   roles: (EmployeeRole & { code: string })[];
 }
 
@@ -53,4 +56,12 @@ export interface UpdateUserTeamResponse {
   employeeId: number;
   teamId: number;
   teamName: string;
+}
+
+export interface UpdateUserTaskResponse {
+  ok: boolean;
+  message: string;
+  employeeId: number;
+  taskId: number;
+  taskName: string;
 }

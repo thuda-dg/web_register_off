@@ -63,16 +63,22 @@ getStatusLabel(
       return 'Chờ TL duyệt';
 
 
+    case 'APPROVED':
     case 'TL_APPROVED':
       return 'TL đã duyệt';
 
 
+    case 'PUBLISHED':
     case 'PUBLIC':
       return 'Đã công bố';
 
 
+    case 'TL_REJECTED':
     case 'REJECTED':
       return 'Từ chối';
+
+    case 'UNPUBLISHED': return 'Đã bỏ công bố';
+    case 'CANCELLED': return 'Đã hủy';
 
 
     default:
