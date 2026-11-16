@@ -31,6 +31,7 @@ import { CreateUserComponent } from './create-user.component';
 import { UpdateUserRolesComponent } from './update-user-roles.component';
 import { UpdateUserTeamComponent } from './update-user-team.component';
 import { UpdateUserTaskComponent } from './update-user-task.component';
+import { RouterLink } from '@angular/router';
 
 
 @Component({
@@ -39,6 +40,7 @@ import { UpdateUserTaskComponent } from './update-user-task.component';
 
   imports: [
     CommonModule,
+    RouterLink,
     CreateUserComponent,
     UpdateUserRolesComponent,
     UpdateUserTeamComponent,
@@ -124,6 +126,8 @@ import { UpdateUserTaskComponent } from './update-user-task.component';
 
 
       @if (canCreateUser()) {
+        <a routerLink="/admin/registration-cycles" class="mb-6 mr-3 inline-block rounded-lg bg-indigo-600 px-5 py-2 font-semibold text-white hover:bg-indigo-700">Kỳ đăng ký OFF</a>
+        <a routerLink="/admin/require-hc/import" class="mb-6 mr-3 inline-block rounded-lg bg-blue-600 px-5 py-2 font-semibold text-white hover:bg-blue-700">Import Excel RequireHC</a>
         <button type="button" (click)="showCreate.set(true); successMessage.set('')"
           [disabled]="showCreate()"
           class="mb-6 rounded-lg bg-emerald-600 px-5 py-2 font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">

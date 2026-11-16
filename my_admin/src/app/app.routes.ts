@@ -17,9 +17,14 @@ import {
 import {
   AdminComponent
 } from './features/admin/admin.component';
+import { RequireHcImport } from './features/require-hc-import/require-hc-import';
+import { adminGuard } from './core/guards/admin.guard';
+import { RegistrationCycles } from './features/registration-cycles/registration-cycles';
 
 
 export const routes: Routes = [
+  { path: 'admin/registration-cycles', component: RegistrationCycles, canActivate: [adminGuard] },
+  { path: 'admin/require-hc/import', component: RequireHcImport, canActivate: [adminGuard] },
 
   {
     path: 'login',

@@ -1,4 +1,5 @@
 const { Op } = require('sequelize');
+const { selectRegistrationCycle } = require('./registration-cycle-selection.service');
 
 const {
   sequelize,
@@ -44,19 +45,10 @@ async function getRegistrationBootstrap(empId, roles = []) {
     throw error;
   }
 
-  // Lấy kỳ đăng ký đang mở gần nhất
+  // Ưu tiên kỳ đang nhận đăng ký; không để kỳ tạo trước che khuất kỳ hiện tại.
   const isAdmin = roles.includes('ADMIN');
-
-  const cycle = await RegistrationCycle.findOne({
-    where: isAdmin
-      ? {}
-      : {
-          status: 'OPEN'
-        },
-    order: [
-      ['start_date', 'DESC']
-    ]
-  });
+  const currentTime = new Date();
+  const cycle = await selectRegistrationCycle(isAdmin, currentTime);
 
   if (!cycle) {
     const error = new Error(
@@ -67,12 +59,10 @@ async function getRegistrationBootstrap(empId, roles = []) {
     throw error;
   }
 
-  // Lấy thời gian hiện tại
-  const currentTime = new Date();
-
   // Lấy kỳ có thời gian mở đăng ký tiếp theo
   const nextCycle = await RegistrationCycle.findOne({
     where: {
+      status: 'OPEN',
       registration_open_time: {
         [Op.gt]: currentTime
       }

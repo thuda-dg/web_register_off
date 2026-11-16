@@ -58,6 +58,10 @@ Prefix chung: `/api`. Endpoint cần phiên dùng `Authorization: Bearer <access
 | GET | `/registration/published` | Đăng nhập; lịch PUBLISHED đang active của tất cả các team |
 | GET | `/registration/require-hc` | Đăng nhập; capacity và số OFF đang chiếm slot theo kỳ/ngày/task |
 | GET | `/admin/getall` | Đăng nhập; hiện chưa yêu cầu ADMIN |
+| GET | `/admin/registration-cycles` | ADMIN từ DB; danh sách kỳ và lịch mở/đóng |
+| POST | `/admin/registration-cycles` | ADMIN từ DB; tạo kỳ từ startDate/endDate |
+| GET | `/admin/require-hc/cycles` | ADMIN từ DB; danh sách kỳ cho trang import |
+| POST | `/admin/require-hc/import` | ADMIN từ DB; multipart Excel, cycleId và mode preview/import |
 | GET | `/admin/users/options` | ADMIN từ DB; team/role active |
 | POST | `/admin/users` | ADMIN từ DB; tạo employee, account, role và team tùy chọn |
 | PATCH | `/admin/users/:employeeId/roles` | ADMIN từ DB; thay danh sách role hiện tại |
@@ -244,3 +248,51 @@ Không tự publish; không chạy lại validation hạn mức khi duyệt vì 
 chiếm số dư/slot. REJECTED không còn chiếm số dư/slot.
 
 Test stub model không ghi DB: node --test src/test-off-approval.js.
+
+## Import Excel RequireHC (ADMIN)
+
+GET /api/admin/require-hc/cycles trả {ok,items:[{id,name,startDate,endDate,status}]}.
+POST /api/admin/require-hc/import nhận multipart: file, cycleId, mode. Chỉ .xlsx
+và .xls, 5 MB, 10.000 dòng; authMiddleware và requireAdmin chạy trước multer.
+Kiểm tra cả đuôi file và định dạng binary, không nhận CSV đổi đuôi. Sheet đầu
+với ba header working_date/task/max_off; ngày Excel hoặc YYYY-MM-DD/DD/MM/YYYY,
+task_code MASS/KEY active từ tasks, max_off INTEGER >=0, ngày thuộc kỳ được chọn.
+Dòng trùng và công thức không được chấp nhận. Các kỳ đều chọn được theo ngày
+start_date giảm dần; status kỳ không hạn chế quyền cấu hình capacity của ADMIN.
+
+mode=preview trả {ok,data:{cycleId,rowCount,rows}} (tối đa 100 dòng), không ghi DB.
+mode=import kiểm tra lại, khóa cycle để serialize import cùng kỳ và bulk upsert
+đúng unique key (cycle_id,working_date,task_id), cập nhật max_off/updated_at. Sort
+ngày rồi task trước khi ghi để thống nhất thứ tự khóa với submit; một transaction
+cho toàn file. Không xóa các bản ghi không có trong file. Trả {ok,message,data:
+{cycleId,imported}}; lỗi validation trả 400, code INVALID_REQUIRE_HC_IMPORT và
+errors [{row,message}] (tối đa 100). Upload quá dung lượng trả 413.
+Không tạo task/chu kỳ mới hay tự hủy đơn khi hạ max_off. Dùng multer/xlsx đã có,
+không cần migration. Test multipart/parser/transaction với model stub, không ghi
+DB: node --test src/test-require-hc-import.js.
+
+## Tạo kỳ đăng ký OFF (ADMIN)
+
+`POST /api/admin/registration-cycles` nhận duy nhất hai trường người dùng nhập:
+`{ "startDate": "2026-11-01", "endDate": "2026-11-30" }`.
+Ngày phải là DATEONLY hợp lệ, bắt đầu <= kết thúc. Tháng của endDate xác định
+cycle_code `2026-11`, cycle_name `Kỳ tháng 11/2026`. Lịch tự sinh 17/10/2026
+00:00:00 đến 23/10/2026 23:59:59.999 giờ Việt Nam; tính đúng khi chuyển năm.
+Client không điều khiển mã, lịch hay status. Response 201 `{ok,message,data}`;
+DTO có id/code/name/startDate/endDate/registrationOpenTime/registrationClosingTime/status.
+`GET /api/admin/registration-cycles` trả `{ok,items}` cùng DTO, mới nhất trước.
+Cả hai có authMiddleware và requireAdmin (kiểm tra quyền hiện tại từ DB).
+
+Tạo trong transaction với PostgreSQL advisory transaction lock chung cho luồng
+tạo kỳ; kiểm tra trùng mã/tháng end_date hoặc chồng ngày, kể cả kỳ cũ/đã lưu trữ,
+trước khi insert. Các lần gọi API này đồng thời được tuần tự hóa. Lỗi đầu vào
+400 INVALID_REGISTRATION_CYCLE; trùng/chồng 409 REGISTRATION_CYCLE_CONFLICT.
+Không thay schema, không sửa kỳ cũ hoặc tự tạo RequireHC/số dư nhân viên.
+
+Kỳ mới có status OPEN nhưng nhân viên chỉ đăng ký được trong lịch lưu trong DB.
+Không cần cron hay thao tác mở thủ công. Bootstrap ưu tiên kỳ OPEN đang trong
+cửa sổ đăng ký; nếu không có, lấy kỳ OPEN sắp mở gần nhất, rồi kỳ OPEN mới nhất.
+Kỳ tương lai không che khuất kỳ đang nhận đăng ký; nextOpenDate chỉ lấy OPEN.
+ADMIN vẫn xem kỳ mới nhất và bypass lịch như hành vi cũ. Test ngày/transaction/
+phân quyền/chọn kỳ bằng stub, không ghi DB:
+`node --test src/test-admin-registration-cycle.js`.

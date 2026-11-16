@@ -29,6 +29,8 @@ Tài liệu chi tiết: [Backend](backend/README.md), [My Agent](my_agent/README
 | Cập nhật nhiều role cho user | API thật, yêu cầu ADMIN; chọn ngay dưới từng dòng trong danh sách |
 | Cập nhật team cho nhân viên | API thật, yêu cầu ADMIN; dropdown chọn một team, lưu lịch sử chuyển team |
 | Cập nhật task cho nhân viên | API thật, yêu cầu ADMIN; dropdown chọn một task, lưu lịch sử chuyển task |
+| Import Excel RequireHC | ADMIN upload .xlsx/.xls, chọn kỳ, kiểm tra trước và nhập/cập nhật hạn mức theo ngày/task |
+| Tạo kỳ đăng ký OFF | ADMIN nhập ngày bắt đầu/kết thúc; tự đặt lịch 17–23 tháng trước cho tháng của ngày kết thúc |
 | Duyệt OFF | API thật, chỉ TEAM_LEAD; nhân viên cùng team hiện tại, không tự duyệt |
 | Công bố lịch | Chưa có API thao tác công bố; trang Published chỉ đọc các entry PUBLISHED |
 
@@ -158,7 +160,7 @@ Test này stub các thao tác model, không ghi database. `npm test` backend hi�
 - Client gọi `/api/registration/my-entries`, nhưng backend chưa khai báo route này.
 - `calendar.routes.js` và `leave-reason.routes.js` tồn tại nhưng chưa được mount trong `src/app.js`.
 - `registration-phase-rule.service.js` có rule OFF trước, nhưng chưa được gọi trong chuỗi validate chính; không coi là quy tắc đã được backend đảm bảo.
-- Ngày mở/đóng đăng ký thực tế lấy từ bảng kỳ đăng ký; không suy ra từ hằng số ngày 17–23 hoặc dữ liệu mock.
+- Ngày mở/đóng khi đăng ký lấy từ DB. Trang tạo kỳ ở admin tự lưu lịch 17–23 tháng trước (UTC+7), không thay lịch các kỳ đã có.
 - Có code cũ song song: model `User` không phải model auth đang dùng; có hai `WfmApiService` dùng dữ liệu mẫu và hai nơi khởi tạo model cho CLI/runtime.
 - Một số log debug hiện có in token/thông tin phiên. Cần xử lý trước khi triển khai production; không sao chép log đó vào tài liệu hoặc issue.
 - Test `my_agent/src/app/app.spec.ts` vẫn kiểm tra tiêu đề Angular mẫu; cần đối chiếu template khi gặp lỗi test này.

@@ -19,6 +19,8 @@ Nếu chạy đồng thời agent ở 4200 và admin ở 4201, đặt `FRONTEND_
 
 - `/login`: đăng nhập bằng mã nhân viên hoặc email.
 - `/admin`: danh sách nhân viên active; có AuthGuard kiểm tra phiên.
+- `/admin/require-hc/import`: import Excel RequireHC, có guard ADMIN.
+- `/admin/registration-cycles`: tạo và xem danh sách kỳ đăng ký OFF, có guard ADMIN.
 - Trang gốc chuyển tới `/admin`.
 - Chưa có route detail/edit employee hoạt động; route đăng ký trong app admin đang comment.
 
@@ -90,6 +92,8 @@ vẫn yêu cầu team/task có hiệu lực vào ngày bắt đầu kỳ. Số d
 | Method | Đường dẫn | Quyền |
 | --- | --- | --- |
 | GET | `/api/admin/getall` | Đăng nhập |
+| GET | `/api/admin/registration-cycles` | ADMIN hiện tại |
+| POST | `/api/admin/registration-cycles` | ADMIN hiện tại |
 | GET | `/api/admin/users/options` | ADMIN hiện tại |
 | POST | `/api/admin/users` | ADMIN hiện tại |
 | PATCH | `/api/admin/users/:employeeId/roles` | ADMIN hiện tại |
@@ -130,3 +134,59 @@ node --test src/test-admin-team.js
 ```
 
 Backend test stub model, không xác nhận ghi dữ liệu trên PostgreSQL thật. Hai frontend có cấu hình SSR; output admin là `dist/my_admin`, chạy bằng `npm run serve:ssr:my_admin` sau khi build. Không cần migration mới chỉ để dùng chức năng admin trên schema đã chạy đủ các migration hiện có.
+
+## Import Excel RequireHC
+
+Trên trang danh sách nhân viên, ADMIN chọn Import Excel RequireHC để mở
+/admin/require-hc/import. Chọn kỳ vì file không chứa cycle_id. Upload một file
+.xlsx hoặc .xls (không CSV/.xlsm), bấm Kiểm tra file, xem dữ liệu chuẩn hóa và
+bấm Nhập dữ liệu. Preview không ghi DB. Đổi file/kỳ sẽ bỏ preview cũ.
+
+Sheet đầu tiên có đúng các cột working_date, task, max_off, cho phép đổi thứ tự.
+Ví dụ (ngày phải thuộc kỳ được chọn):
+
+| working_date | task | max_off |
+| --- | --- | --- |
+| 2026-11-17 | MASS | 2 |
+| 18/11/2026 | KEY | 1 |
+
+Ngày nhận ô ngày Excel (chỉ lấy ngày nếu có giờ), YYYY-MM-DD hoặc DD/MM/YYYY.
+MASS/KEY được tra task_code trong bảng tasks đang active để lấy task_id tương ứng
+(thông thường MASS=1, KEY=2), không tự tạo task còn thiếu. Preview hiển thị ID đã map.
+max_off phải nguyên không âm; 0 đóng slot ngày đó. Không dùng công thức.
+
+Giới hạn 5 MB, 10.000 dòng; preview tối đa 100 dòng, lỗi tối đa 100 thông báo
+kèm số dòng. File giả đổi đuôi, trùng ngày/task trong file, ngày ngoài kỳ, task
+không hợp lệ đều bị từ chối. Có lỗi thì không ghi một phần. Khi nhập, backend
+kiểm tra lại và upsert theo cycle_id/working_date/task_id trong một transaction.
+Bản ghi đã có chỉ cập nhật max_off và updated_at; không xóa ngày/chu kỳ khác.
+Giảm capacity không tự hủy đơn đã đăng ký. Chỉ ADMIN được đọc options/upload;
+auth và quyền kiểm tra trước khi nhận file. Không cần migration hay dependency mới.
+
+API: GET /api/admin/require-hc/cycles và POST /api/admin/require-hc/import.
+POST là multipart/form-data gồm file, cycleId, mode (preview hoặc import).
+Không tự đặt Content-Type ở client để trình duyệt tạo đúng multipart boundary.
+Test frontend: npm test -- --watch=false.
+Test backend từ backend: node --test src/test-require-hc-import.js.
+
+## Tạo kỳ đăng ký OFF
+
+Tại `/admin`, ADMIN chọn **Kỳ đăng ký OFF** để tới `/admin/registration-cycles`.
+Form chỉ nhập ngày bắt đầu và kết thúc của khoảng ngày nghỉ. Tháng của ngày kết
+thúc xác định tháng kỳ (kể cả khoảng 26 tháng trước–25 tháng sau). Mỗi tháng có
+một kỳ. Backend sinh mã `YYYY-MM`, tên kỳ và lịch nhận đăng ký từ 00:00 ngày 17
+đến 23:59:59.999 ngày 23 của tháng trước, UTC+7. Ví dụ 01/11–30/11/2026 nhận
+đăng ký 17/10–23/10/2026; kỳ tháng 01/2027 nhận đăng ký 17–23/12/2026.
+
+Trang hiển thị trước mã/tên/lịch mở và danh sách các kỳ từ API, có nút Làm mới
+giữ nguyên dữ liệu form. Tạo thành công thêm ngay vào danh sách; lỗi giữ nguyên
+ngày để sửa/thử lại. Ngăn gửi trùng khi đang lưu. Trùng tháng (kể cả mã kỳ cũ
+khác định dạng) hoặc chồng khoảng ngày trả 409; ngày sai/thứ tự sai trả 400.
+
+Kỳ mới lưu `OPEN` để nhận đăng ký theo lịch; frontend hiển thị chưa đến lịch,
+đang nhận hoặc hết thời gian theo giờ thực tế. Không cần cron đổi trạng thái
+hằng tháng hay bấm mở thủ công. Chức năng này không tự tạo kỳ tháng tiếp theo,
+RequireHC hay số dư OFF; cần cấu hình các dữ liệu đó riêng. Không đổi lịch kỳ
+đã có và không cần migration mới. Quyền bypass lịch của ADMIN trong luồng đăng
+ký hiện có vẫn được giữ. Test backend không ghi DB:
+`node --test src/test-admin-registration-cycle.js`.

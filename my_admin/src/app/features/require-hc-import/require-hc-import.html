@@ -1,0 +1,58 @@
+<main class="min-h-screen bg-slate-100 px-6 py-8 text-slate-800">
+  <section class="mx-auto max-w-5xl rounded-2xl border bg-white p-6 shadow-sm">
+    <a routerLink="/admin" class="text-sm font-semibold text-emerald-700">← Danh sách nhân viên</a>
+    <h1 class="mt-5 text-2xl font-bold text-emerald-700">Import Excel RequireHC</h1>
+    <p class="mt-2 text-sm text-slate-600">Nhập hạn mức OFF theo kỳ, ngày và task. Chỉ ADMIN được sử dụng.</p>
+    <div class="mt-5 rounded-lg bg-slate-50 p-4 text-sm leading-6">
+      <p>Sheet đầu tiên cần đúng ba cột ở dòng đầu: <strong>working_date</strong>, <strong>task</strong>, <strong>max_off</strong>.</p>
+      <p>Ngày: ô ngày Excel, YYYY-MM-DD hoặc DD/MM/YYYY. Task: MASS hoặc KEY, tra ID từ bảng tasks. max_off: số nguyên ≥ 0.</p>
+      <p>File .xlsx/.xls tối đa 5 MB, 10.000 dòng; không dùng công thức. Ngày phải thuộc kỳ đã chọn.</p>
+      <p>Trùng kỳ/ngày/task trong DB sẽ cập nhật max_off. Các ngày không có trong file được giữ nguyên. Trùng dòng trong file sẽ báo lỗi.</p>
+      <p>Giảm hạn mức không tự hủy các đơn OFF đã đăng ký. Ô ngày Excel có phần giờ sẽ chỉ lấy ngày.</p>
+    </div>
+    @if (error()) { <p role="alert" class="mt-4 rounded-lg bg-red-50 p-3 text-red-700">{{ error() }}</p> }
+    @if (success()) { <p role="status" class="mt-4 rounded-lg bg-emerald-50 p-3 text-emerald-700">{{ success() }}</p> }
+    @if (rowErrors().length) {
+      <ul class="mt-3 max-h-64 overflow-auto text-sm text-red-700">
+        @for (error of rowErrors(); track $index) { <li>Dòng {{ error.row }}: {{ error.message }}</li> }
+      </ul>
+      <p class="mt-1 text-xs text-slate-500">Hiển thị tối đa 100 lỗi. File có lỗi sẽ không được nhập một phần.</p>
+    }
+    @if (loading()) { <p role="status" class="mt-5 text-sm">Đang tải kỳ đăng ký...</p> }
+    @else if (!cycles().length) {
+      <p class="mt-4 text-sm">Chưa có kỳ đăng ký hoặc chưa tải được danh sách kỳ.</p>
+      <button type="button" (click)="loadCycles()" class="mt-3 rounded-lg border px-4 py-2">Tải lại kỳ</button>
+    }
+    <fieldset [disabled]="busy()" class="mt-5 grid gap-4 sm:grid-cols-2">
+      <label class="text-sm font-medium">Kỳ đăng ký *
+        <select [ngModel]="cycleId()" (ngModelChange)="changeCycle($event)" class="mt-1 block w-full rounded-lg border px-3 py-2">
+          <option [ngValue]="null">Chọn kỳ</option>
+          @for (cycle of cycles(); track cycle.id) { <option [ngValue]="cycle.id">{{ cycle.name }} ({{ cycle.status }})</option> }
+        </select>
+        @if (selectedCycle(); as cycle) { <span class="mt-2 block text-xs text-slate-500">Ngày hợp lệ: {{ cycle.startDate }} đến {{ cycle.endDate }}</span> }
+      </label>
+      <label class="text-sm font-medium">File Excel *
+        <input type="file" accept=".xlsx,.xls" (change)="chooseFile($event)" class="mt-1 block w-full rounded-lg border p-2" />
+        @if (file(); as selected) { <span class="mt-2 block break-all text-xs text-slate-500">Đã chọn: {{ selected.name }}</span> }
+      </label>
+    </fieldset>
+    <div class="mt-5 flex flex-wrap gap-3">
+      <button type="button" (click)="validate()" [disabled]="busy() || !file() || !cycleId()"
+        class="rounded-lg border border-emerald-600 px-4 py-2 font-semibold text-emerald-700 disabled:opacity-50">{{ working() ? 'Đang xử lý...' : 'Kiểm tra file' }}</button>
+      <button type="button" (click)="import()" [disabled]="busy() || !preview()"
+        class="rounded-lg bg-emerald-700 px-4 py-2 font-semibold text-white disabled:opacity-50">Nhập dữ liệu</button>
+    </div>
+    @if (preview(); as data) {
+      <p class="mt-6 text-sm font-semibold">File hợp lệ: {{ data.rowCount }} dòng. Chưa ghi vào DB. Bấm “Nhập dữ liệu” để lưu.</p>
+      <p class="mt-1 text-xs text-slate-500">Xem trước tối đa 100 dòng.</p>
+      <div class="mt-3 max-h-96 overflow-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="bg-slate-100"><tr><th class="p-2">Dòng Excel</th><th class="p-2">working_date</th><th class="p-2">task</th><th class="p-2">Task ID</th><th class="p-2">max_off</th></tr></thead>
+          <tbody>@for (row of data.rows; track row.row) {
+            <tr class="border-b"><td class="p-2">{{ row.row }}</td><td class="p-2">{{ row.workingDate }}</td><td class="p-2">{{ row.task }}</td><td class="p-2">{{ row.taskId }}</td><td class="p-2">{{ row.maxOff }}</td></tr>
+          }</tbody>
+        </table>
+      </div>
+    }
+  </section>
+</main>
