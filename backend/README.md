@@ -53,6 +53,8 @@ Prefix chung: `/api`. Endpoint cần phiên dùng `Authorization: Bearer <access
 | POST | `/registration/validate` | Đăng nhập; kiểm tra `cycleId`, `entries` |
 | POST | `/registration/submit` | Đăng nhập; validate lại rồi lưu trong transaction |
 | GET | `/registration/history` | Đăng nhập; lịch sử của `empId` trong JWT |
+| GET | `/registration/approvals` | TEAM_LEAD hiện tại từ DB; OFF của nhân viên cùng team, loại trừ bản thân |
+| PATCH | `/registration/approvals/:entryId` | TEAM_LEAD; duyệt/từ chối entry OFF đang PENDING_TL |
 | GET | `/registration/published` | Đăng nhập; lịch PUBLISHED đang active của tất cả các team |
 | GET | `/registration/require-hc` | Đăng nhập; capacity và số OFF đang chiếm slot theo kỳ/ngày/task |
 | GET | `/admin/getall` | Đăng nhập; hiện chưa yêu cầu ADMIN |
@@ -62,7 +64,7 @@ Prefix chung: `/api`. Endpoint cần phiên dùng `Authorization: Bearer <access
 | PATCH | `/admin/users/:employeeId/team` | ADMIN từ DB; gán một team active cho nhân viên |
 | PATCH | `/admin/users/:employeeId/task` | ADMIN từ DB; gán một task active cho nhân viên |
 
-Không thêm vào tài liệu API hoạt động chỉ vì thấy một file router hoặc method client: `/registration/my-entries`, calendar/leave-reasons và luồng duyệt/công bố chưa có trong tập route được mount.
+Không thêm vào tài liệu API hoạt động chỉ vì thấy một file router hoặc method client: `/registration/my-entries`, calendar/leave-reasons và thao tác công bố chưa có trong tập route được mount. Duyệt/từ chối OFF đã có API approvals.
 
 Ví dụ body (các ID phải tồn tại trong DB của bạn):
 
@@ -216,3 +218,29 @@ sau đó tổng hợp COUNT(entry_id) theo submission.cycle_id, entry.task_id v�
 entry.leave_date. Chỉ đếm OFF active ở ACTIVE_BALANCE_STATUSES; cùng quy tắc slot
 với bootstrap. Không lọc nhân viên/team, không nhân bản capacity theo team.
 Không thay đổi DB, không cần migration. Test: node --test src/test-require-hc.js.
+
+## TEAM_LEAD duyệt OFF
+
+GET /api/registration/approvals trả {ok:true,data:{teamId,teamName,rows}}.
+PATCH /api/registration/approvals/:entryId nhận {decision:"approve"|"reject",note}.
+Lý do từ chối bắt buộc, tối đa 1000 ký tự. Trả {ok,message,data:{entryId,status,
+decisionNote,decidedAt}}. Cả hai endpoint có authMiddleware và kiểm tra role
+TEAM_LEAD còn hiệu lực từ DB, account ACTIVE, employee active. Không suy quyền
+từ ADMIN, không chỉ tin JWT. Hiệu lực role/team ở luồng này tính theo ngày +07.
+
+Phạm vi là nhân viên hiện tại cùng team với lead, căn cứ emp_team_histories
+start_date/end_date, không dựa vào team client gửi lên. Lead phải có đúng một
+team active; không có hoặc dữ liệu chồng lấn trả 409 INVALID_LEAD_TEAM. Không
+cho tự duyệt/từ chối, không xử lý loại nghỉ ngoài OFF hoặc entry inactive.
+Team snapshot trên đơn không bị thay khi nhân viên chuyển team.
+
+Chỉ PENDING_TL được duyệt/từ chối. Cập nhật APPROVED/REJECTED và thêm action
+TL_APPROVED/TL_REJECTED, old_status=PENDING_TL, new_status tương ứng,
+performed_by_user_id là user_account_id của lead, note và created_at trong cùng
+transaction. Khóa theo thứ tự employee chủ đơn -> entry -> RequireHC, tương thích
+submit. Hai lead xử lý cùng một đơn: lượt sau nhận 409 ENTRY_ALREADY_DECIDED.
+Quyền/phạm vi sai trả 403; dữ liệu đầu vào sai trả 400; đơn không tồn tại trả 404.
+Không tự publish; không chạy lại validation hạn mức khi duyệt vì PENDING_TL đã
+chiếm số dư/slot. REJECTED không còn chiếm số dư/slot.
+
+Test stub model không ghi DB: node --test src/test-off-approval.js.

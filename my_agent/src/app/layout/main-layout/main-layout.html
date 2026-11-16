@@ -18,7 +18,7 @@
     <!-- MENU -->
     <nav class="mb-5 rounded-xl bg-white px-5 py-3 shadow">
 
-      <div class="flex gap-5 text-sm font-semibold">
+      <div class="flex flex-wrap gap-5 text-sm font-semibold">
 
         <a routerLink="/schedule"
            routerLinkActive="text-emerald-700">
@@ -26,6 +26,9 @@
         </a>
 
 
+        @if (isTeamLead) {
+          <a routerLink="/approvals" routerLinkActive="text-emerald-700">Duyệt OFF</a>
+        }
         <a routerLink="/history"
            routerLinkActive="text-emerald-700">
           Lịch sử đăng ký

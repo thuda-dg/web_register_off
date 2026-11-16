@@ -2,9 +2,12 @@ const express = require('express');
 const {bootstrap, validate, submitRegistrationController,getMyRegistrationEntriesController, published, requireHc} = require('../controllers/registration.controller');
 const {authMiddleware} = require('../middleware/auth.middleware');
 const router = express.Router();
+const approvals = require('../controllers/off-approval.controller');
 
 // Xác thực user cho tất cả API registration
 router.use(authMiddleware);
+router.get('/approvals', approvals.list);
+router.patch('/approvals/:entryId', approvals.decide);
 router.get('/published', published);
 router.get('/require-hc', requireHc);
 

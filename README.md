@@ -29,7 +29,8 @@ Tài liệu chi tiết: [Backend](backend/README.md), [My Agent](my_agent/README
 | Cập nhật nhiều role cho user | API thật, yêu cầu ADMIN; chọn ngay dưới từng dòng trong danh sách |
 | Cập nhật team cho nhân viên | API thật, yêu cầu ADMIN; dropdown chọn một team, lưu lịch sử chuyển team |
 | Cập nhật task cho nhân viên | API thật, yêu cầu ADMIN; dropdown chọn một task, lưu lịch sử chuyển task |
-| Duyệt TL / công bố lịch | Chưa có route API được mount để thực hiện; không coi các hàm mock là chức năng production |
+| Duyệt OFF | API thật, chỉ TEAM_LEAD; nhân viên cùng team hiện tại, không tự duyệt |
+| Công bố lịch | Chưa có API thao tác công bố; trang Published chỉ đọc các entry PUBLISHED |
 
 ## Chạy local
 

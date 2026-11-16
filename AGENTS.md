@@ -78,6 +78,6 @@ node --test src/test-admin-team.js
 ## Tài liệu và bàn giao
 
 - Cập nhật README khi đổi cách chạy, env, API, quyền hoặc mức hoàn thiện chức năng.
-- Nêu chính xác route đã mount và tính năng mock/chưa nối; `/registration/my-entries` đang thiếu route, calendar/leave-reasons chưa mount, duyệt/công bố chưa có API hoạt động.
+- Nêu chính xác route đã mount và tính năng mock/chưa nối; `/registration/my-entries` đang thiếu route, calendar/leave-reasons chưa mount, thao tác công bố chưa có API. Duyệt/từ chối OFF đã có `/registration/approvals`, chỉ TEAM_LEAD từ DB, nhân viên cùng team hiện tại và không tự duyệt.
 - API đăng ký tài khoản vẫn công khai; `/admin/getall` chỉ yêu cầu đăng nhập. Không mô tả toàn bộ hệ thống là ADMIN-only.
 - Báo rõ đã sửa gì, đã kiểm tra gì và giới hạn còn lại. Không nói build/test thành công nếu chưa chạy hoặc chưa thấy kết quả.

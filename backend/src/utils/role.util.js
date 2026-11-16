@@ -1,7 +1,6 @@
 const { Op } = require('sequelize');
 
-function getActiveRoles(account, options = {}) {
-  const today = new Date().toISOString().slice(0, 10);
+function getActiveRoles(account, options = {}, today = new Date().toISOString().slice(0, 10)) {
   return account.getRoles({
     ...options,
     where: { is_active: true },

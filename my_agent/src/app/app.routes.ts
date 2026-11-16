@@ -7,6 +7,8 @@ import { Schedule } from './features/schedule/schedule';
 import { History } from './features/history/history';
 import { PublishedSchedule } from './features/published-schedule/published-schedule';
 import { RequireHc } from './features/require-hc/require-hc';
+import { OffApprovals } from './features/off-approvals/off-approvals';
+import { teamLeadGuard } from './core/guards/team-lead.guard';
 
 
 export const routes: Routes = [
@@ -32,6 +34,9 @@ export const routes: Routes = [
         component: Schedule
       },
 
+      {
+        path: 'approvals', component: OffApprovals, canActivate: [teamLeadGuard]
+      },
       {
         path: 'history',
         component: History

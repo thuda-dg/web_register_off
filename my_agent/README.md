@@ -24,6 +24,7 @@ Mở [localhost:4200](http://localhost:4200). Backend mặc định tại `http:
 | `/login` | Đăng nhập bằng mã nhân viên hoặc email | API auth |
 | `/register` | Tự đăng ký tài khoản EMPLOYEE | API auth công khai |
 | `/schedule` | Xem kỳ, chọn ngày/loại nghỉ/lý do, xác nhận và gửi | API registration |
+| `/approvals` | TEAM_LEAD duyệt/từ chối OFF của nhân viên cùng team hiện tại | API registration/approvals |
 | `/history` | Lịch sử cá nhân, lọc kỳ/loại/trạng thái | API registration/history |
 | `/published` | Lịch nghỉ đã chốt, bộ lọc và thống kê | API registration/published |
 | `/require-hc` | Bảng capacity, bộ lọc và thống kê | API registration/require-hc |
@@ -101,7 +102,7 @@ khi kết quả rỗng hoặc lỗi mạng. Ba thống kê đầu tính trên to
 Đang hiển thị tính trên kết quả lọc. Thời điểm công bố lấy action PUBLISHED mới
 nhất, hiển thị giờ +07; thiếu action thì hiện dấu gạch ngang, không lấy ngày gửi thay thế.
 
-Chức năng này chỉ đọc, chưa bổ sung duyệt/công bố đơn. Không cần migration mới.
+Trang Published chỉ đọc. Duyệt/từ chối OFF thực hiện tại `/approvals`; chưa có thao tác công bố đơn. Không cần migration mới.
 Test: npm test -- --watch=false --include=src/app/features/published-schedule/published-schedule.spec.ts
 
 ## RequireHC
@@ -123,3 +124,26 @@ migration hoặc seed dữ liệu để sử dụng API.
 
 Test frontend: npm test -- --watch=false --include=src/app/features/require-hc/require-hc.spec.ts
 Test backend trong backend: node --test src/test-require-hc.js
+
+## Duyệt OFF dành cho Team Lead
+
+Tab Duyệt OFF nằm ngay sau Đăng ký nghỉ, chỉ hiện với role TEAM_LEAD. Route
+/approvals có guard; backend kiểm tra lại quyền trực tiếp từ DB cho cả đọc/ghi,
+ADMIN đơn thuần không được duyệt. Sau khi được cấp role, đăng xuất/đăng nhập lại
+để cập nhật tab. Lead cần đúng một team hiện tại đang active.
+
+Mỗi dòng là một ngày OFF. Chỉ hiển thị các nhân viên active hiện đang cùng team
+với lead, loại trừ đơn của lead; team trên đơn vẫn là snapshot lúc đăng ký.
+Mặc định lọc Chờ duyệt. Lọc kỳ, trạng thái và tìm mã/tên nhân viên được kết hợp
+AND. Làm mới giữ bộ lọc, chặn tải trùng và giữ dữ liệu khi lỗi mạng.
+
+Duyệt/Từ chối mở modal xác nhận, ghi chú tối đa 1000 ký tự; từ chối bắt buộc lý do.
+Chỉ PENDING_TL active được xử lý. Duyệt -> APPROVED; từ chối -> REJECTED. Ghi chú,
+ngày xử lý, thống kê và danh sách cập nhật ngay khi thành công. Đơn đã xử lý
+không còn nút thao tác; xung đột 409 sẽ tải lại danh sách. Không có duyệt hàng loạt
+hoặc tự động công bố. APPROVED chưa xuất hiện trong Published.
+
+Từ chối giải phóng số dư OFF và slot ở lần tải tiếp theo do trạng thái REJECTED
+không nằm trong ACTIVE_BALANCE_STATUSES. Không sửa snapshot team/task.
+Không cần migration/seed. Kiểm tra frontend: npm test -- --watch=false
+--include=src/app/features/off-approvals/off-approvals.spec.ts (một dòng lệnh).
