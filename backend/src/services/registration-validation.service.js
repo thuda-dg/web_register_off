@@ -1,5 +1,5 @@
 const {
-  validateWeeklyOff,
+  validateOffPattern,
   validateOffBalance,
   validateOffDatesInCycle,
   validateOffRequireHC
@@ -127,6 +127,8 @@ async function validateRegistration({
     });
 
 
+  if (!cycle) return { valid: false, errors: [...errors, { code: 'CYCLE_NOT_FOUND', message: 'Không tìm thấy kỳ đăng ký.' }] };
+
   const balanceYear = Number(
     String(cycle.start_date).slice(0, 4)
   );
@@ -155,7 +157,7 @@ async function validateRegistration({
 
 
   const weeklyOffErrors =
-    await validateWeeklyOff({
+    await validateOffPattern({
       empId,
       cycleId,
       entries,

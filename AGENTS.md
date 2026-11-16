@@ -45,7 +45,7 @@
 ## Nghiệp vụ cần giữ
 
 - Validator backend là nơi quyết định chấp nhận đăng ký; frontend kiểm tra trước chỉ hỗ trợ trải nghiệm.
-- OFF kiểm tra kỳ, số dư, một ngày/tuần thứ Hai–Chủ nhật và RequireHC theo task/ngày.
+- OFF kiểm tra kỳ, số dư, tối đa 4 ngày/kỳ, 2 ngày/tuần thứ Hai–Chủ nhật, không 4 Chủ nhật liên tiếp, khoảng cách các ngày OFF liền kề trong cùng kỳ tối đa 10 ngày và RequireHC theo task/ngày. Gộp ngày đã lưu và request; tuần/chuỗi Chủ nhật xét cả kỳ liền kề. Submit khóa employee rồi capacity để tránh hai yêu cầu cùng vượt hạn mức.
 - AL `A`/`A/2` kiểm tra ngày, lý do và số dư; định lượng từ danh mục.
 - Đối chiếu `ACTIVE_BALANCE_STATUSES` khi đổi trạng thái đăng ký để tránh sai số dư/capacity.
 - Cửa sổ đăng ký lấy từ database. Không dùng hằng số hoặc ngày seed làm lịch hiện hành.

@@ -1,5 +1,6 @@
 const {
   sequelize,
+  Employee,
   RegistrationSubmission,
   RegistrationEntry,
   RegistrationAction
@@ -36,6 +37,16 @@ async function submitRegistration({
 
 
   try {
+    // Serialize submissions of one employee before balance/history checks.
+    const employee = await Employee.findOne({
+      where: { emp_id: empId, is_active: true }, transaction, lock: transaction.LOCK.UPDATE
+    });
+    if (!employee) {
+      const error = new Error('Không tìm thấy nhân viên đang hoạt động.');
+      error.statusCode = 404;
+      error.code = 'EMPLOYEE_NOT_FOUND';
+      throw error;
+    }
 
     const validationResult =
       await validateRegistration({

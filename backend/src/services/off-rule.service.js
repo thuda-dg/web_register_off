@@ -17,126 +17,71 @@ const {
   getWeekRange
 } = require('../utils/week.util');
 
-async function validateWeeklyOff({
-  empId,
-  cycleId,
-  entries,
-  transaction = null
-}) {
+const DAY_MS = 86400000;
+const dateNumber = value => Date.parse(value + 'T00:00:00Z') / DAY_MS;
+
+async function getExistingOffDates({ empId, cycleId, transaction = null }) {
+  return RegistrationEntry.findAll({
+    attributes: ['leave_date'],
+    include: [
+      { model: RegistrationSubmission, as: 'submission', required: true, attributes: [],
+        where: { emp_id: empId, ...(cycleId == null ? {} : { cycle_id: cycleId }) } },
+      { model: LeaveType, as: 'leaveType', required: true, attributes: [], where: { leave_type_code: 'OFF' } }
+    ],
+    where: { is_active: true, current_status: { [Op.in]: ACTIVE_BALANCE_STATUSES } },
+    transaction, raw: true
+  });
+}
+
+// All days are DATEONLY strings. Existing OFFs include pending approvals.
+function checkOffPattern({ entries, historyDates = [], cycleDates = [] }) {
+  const requested = entries.filter(entry => entry.leaveTypeCode === 'OFF').map(entry => entry.leaveDate);
+  if (!requested.length) return [];
   const errors = [];
-
-  // Chỉ lấy các entry OFF trong request
-  const offEntries = entries.filter(
-    (entry) => entry.leaveTypeCode === 'OFF'
-  );
-
-  if (offEntries.length === 0) {
-    return errors;
+  const allDates = [...new Set([...historyDates, ...requested])].sort();
+  const requestedWeeks = new Map(requested.map(date => {
+    const week = getWeekRange(date);
+    return [week.start, week];
+  }));
+  for (const week of requestedWeeks.values()) {
+    const count = allDates.filter(date => date >= week.start && date <= week.end).length;
+    if (count > 2) errors.push({
+      code: 'OFF_WEEK_LIMIT_EXCEEDED', weekStart: week.start, weekEnd: week.end,
+      total: count, limit: 2,
+      message: 'Tuần ' + week.start + ' đến ' + week.end + ' chỉ được tối đa 2 ngày OFF (gồm cả ngày đã đăng ký).'
+    });
   }
-
-  // Kiểm tra request có chọn nhiều OFF trong cùng tuần không
-  const requestWeeks = new Map();
-
-  for (const entry of offEntries) {
-    const week = getWeekRange(entry.leaveDate);
-    const weekKey = `${week.start}_${week.end}`;
-
-    if (requestWeeks.has(weekKey)) {
-      errors.push({
-        code: 'MULTIPLE_OFF_IN_REQUEST_WEEK',
-        leaveDate: entry.leaveDate,
-        message:
-          `Không được đăng ký nhiều hơn 1 OFF trong tuần ` +
-          `${week.start} đến ${week.end}.`
-      });
-
-      continue;
-    }
-
-    requestWeeks.set(
-      weekKey,
-      entry.leaveDate
-    );
-  }
-
-  // Kiểm tra database đã có OFF trong tuần chưa
-  for (const entry of offEntries) {
-    const week = getWeekRange(
-      entry.leaveDate
-    );
-
-    const existingOffCount =
-      await RegistrationEntry.count({
-        include: [
-          {
-            model:
-              RegistrationSubmission,
-
-            as:
-              'submission',
-
-            attributes: [],
-
-            required: true,
-
-            where: {
-              emp_id: empId,
-              cycle_id: cycleId
-            }
-          },
-
-          {
-            model:
-              LeaveType,
-
-            as:
-              'leaveType',
-
-            attributes: [],
-
-            required: true,
-
-            where: {
-              leave_type_code: 'OFF'
-            }
-          }
-        ],
-
-        where: {
-          leave_date: {
-            [Op.between]: [
-              week.start,
-              week.end
-            ]
-          },
-
-          current_status: {
-            [Op.in]:
-              ACTIVE_BALANCE_STATUSES
-          },
-
-          is_active: true
-        },
-
-        transaction
-      });
-
-    if (existingOffCount > 0) {
-      errors.push({
-        code:
-          'OFF_ALREADY_EXISTS_IN_WEEK',
-
-        leaveDate:
-          entry.leaveDate,
-
-        message:
-          `Tuần ${week.start} đến ${week.end} ` +
-          `đã có ngày OFF.`
-      });
+  const requestedSundays = new Set(requested.filter(date => new Date(date + 'T00:00:00Z').getUTCDay() === 0));
+  const sundays = allDates.filter(date => new Date(date + 'T00:00:00Z').getUTCDay() === 0);
+  for (let i = 3; i < sundays.length; i++) {
+    const window = sundays.slice(i - 3, i + 1);
+    if (window.some(date => requestedSundays.has(date)) &&
+        window.every((date, index) => index === 0 || dateNumber(date) - dateNumber(window[index - 1]) === 7)) {
+      errors.push({ code: 'FOUR_CONSECUTIVE_SUNDAYS', leaveDates: window,
+        message: 'Không được OFF 4 Chủ nhật liên tiếp: ' + window.join(', ') + '.' });
     }
   }
-
+  const inCycle = [...new Set([...cycleDates, ...requested])].sort();
+  for (let i = 1; i < inCycle.length; i++) {
+    const gap = dateNumber(inCycle[i]) - dateNumber(inCycle[i - 1]);
+    if (gap > 10) errors.push({ code: 'OFF_GAP_EXCEEDED', fromDate: inCycle[i - 1],
+      toDate: inCycle[i], gapDays: gap, limit: 10,
+      message: 'Hai ngày OFF ' + inCycle[i - 1] + ' và ' + inCycle[i] + ' cách nhau ' + gap + ' ngày, vượt tối đa 10 ngày trong kỳ.' });
+  }
   return errors;
+}
+
+async function validateOffPattern({ empId, cycleId, entries, transaction = null }) {
+  if (!entries.some(entry => entry.leaveTypeCode === 'OFF')) return [];
+  const history = await getExistingOffDates({ empId, transaction });
+  const cycleHistory = await getExistingOffDates({ empId, cycleId, transaction });
+  return checkOffPattern({ entries, historyDates: history.map(row => String(row.leave_date)),
+    cycleDates: cycleHistory.map(row => String(row.leave_date)) });
+}
+
+// Preserve the existing helper for manual rule scripts.
+async function validateWeeklyOff(args) {
+  return (await validateOffPattern(args)).filter(error => error.code === 'OFF_WEEK_LIMIT_EXCEEDED');
 }
 
 async function validateOffBalance({
@@ -165,6 +110,12 @@ async function validateOffBalance({
       cycleId,
       transaction
     });
+
+  if (offBalance.used + requestedOffCount > 4) {
+    errors.push({ code: 'OFF_CYCLE_LIMIT_EXCEEDED', used: offBalance.used,
+      requested: requestedOffCount, limit: 4,
+      message: 'Mỗi kỳ chỉ được tối đa 4 ngày OFF, gồm cả ngày đã đăng ký.' });
+  }
 
   if (
     requestedOffCount >
@@ -278,7 +229,7 @@ async function validateOffRequireHC({
   }
 
   // Kiểm tra từng ngày OFF
-  for (const entry of offEntries) {
+  for (const entry of [...offEntries].sort((a, b) => a.leaveDate.localeCompare(b.leaveDate))) {
     // Lấy task của nhân viên tại đúng ngày đăng ký OFF
     const [taskRows] =
       await RegistrationSubmission
@@ -341,7 +292,8 @@ async function validateOffRequireHC({
             taskId
         },
 
-        transaction
+        transaction,
+        ...(transaction ? { lock: transaction.LOCK.UPDATE } : {})
       });
 
     if (!requireHC) {
@@ -463,6 +415,8 @@ async function validateOffRequireHC({
 }
 
 module.exports = {
+  checkOffPattern,
+  validateOffPattern,
   validateWeeklyOff,
   validateOffBalance,
   validateOffDatesInCycle,

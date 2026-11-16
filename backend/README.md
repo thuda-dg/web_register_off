@@ -149,9 +149,31 @@ một team tại một thời điểm. Test: `node --test src/test-admin-team.js
 
 ## Nghiệp vụ đăng ký
 
+Chính sách OFF được thực thi trong `off-rule.service.js` qua validator dùng chung
+cho `/validate` và `/submit`. Khi submit, API validate lại trong transaction; ADMIN
+không được bỏ qua các giới hạn OFF. Các ngày đã lưu ở trạng thái `PENDING_TL`,
+`APPROVED`, `PUBLISHED`, `UNPUBLISHED` và active được gộp với request; ngày bị hủy,
+từ chối hoặc inactive không được tính.
+
+- Tối đa 4 OFF/kỳ, đồng thời không vượt số dư được cấp. Được cấp hơn 4 vẫn bị giới hạn 4.
+- Tối đa 2 OFF/tuần thứ Hai–Chủ nhật, gồm cả ngày thuộc kỳ liền kề.
+- Không OFF 4 Chủ nhật liên tiếp, kể cả qua kỳ.
+- Khoảng cách giữa các OFF liền kề trong cùng kỳ không quá 10 ngày lịch. Không xét
+  khoảng trống đầu/cuối kỳ, không bắt buộc gửi đủ 4 ngày trong lần đầu.
+- RequireHC theo kỳ/ngày/task; thiếu task hoặc capacity cũng bị từ chối.
+
+Submit khóa employee trước khi kiểm tra lịch/số dư, rồi khóa capacity theo thứ tự
+ngày trước khi đếm slot. Các luồng sửa trạng thái đăng ký sau này cần dùng khóa
+tương ứng để giữ tính nhất quán. Rule sai trả `REGISTRATION_VALIDATION_FAILED`
+(HTTP 400 khi submit) kèm `errors`, không ghi đơn. Mã lỗi mới:
+`OFF_CYCLE_LIMIT_EXCEEDED`, `OFF_WEEK_LIMIT_EXCEEDED`, `FOUR_CONSECUTIVE_SUNDAYS`,
+`OFF_GAP_EXCEEDED`. Giữ các lỗi số dư và RequireHC hiện có.
+
+Test tự động dùng model stub, không ghi DB: `node --test src/test-off-policy.js`.
+
 - Controller lấy `empId` từ JWT, không cho client chỉ định nhân viên thay thế trong body.
 - Chuỗi kiểm tra chính nằm trong `registration-validation.service.js`: cấu trúc, ngày trùng trong request/DB, kỳ mở, loại nghỉ active, OFF, AL.
-- OFF: ngày trong kỳ, số dư theo kỳ, tối đa một OFF trong tuần thứ Hai–Chủ nhật, capacity RequireHC theo task/ngày.
+- OFF: ngày trong kỳ, không vượt số dư được cấp và tối đa 4 ngày/kỳ; tối đa 2 ngày/tuần thứ Hai–Chủ nhật, không 4 Chủ nhật liên tiếp, các ngày OFF liền kề trong cùng kỳ cách nhau tối đa 10 ngày, capacity RequireHC theo task/ngày.
 - AL: `A` và `A/2` kiểm tra danh mục, ngày trong kỳ, lý do hợp lệ và số dư. Định lượng trừ phép lấy từ model/danh mục; không hardcode một ngày cho mọi loại nghỉ.
 - Các trạng thái đang tính vào số đã dùng: `PENDING_TL`, `APPROVED`, `PUBLISHED`, `UNPUBLISHED` trong `leave-balance.service.js`.
 - ADMIN bypass kiểm tra cửa sổ/kỳ mở trong validator hiện tại; các rule khác vẫn được gọi. Role của luồng này lấy từ JWT, khác kiểm tra ADMIN trực tiếp DB ở API quản trị.
