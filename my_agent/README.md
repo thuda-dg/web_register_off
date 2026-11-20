@@ -208,4 +208,4 @@ Không đổi dữ liệu role hay quyền API đọc lịch cá nhân: EMPLOYEE
 
 Nút Đăng xuất nằm trên header MainLayout, dùng được ở mọi tab; ngăn bấm lặp khi đang gửi. Dùng AuthService hiện có để thu hồi phiên và chuyển về login.
 
-Header MainLayout hiển thị họ tên, mã nhân viên và team hiện tại trên mọi tab, lấy từ AuthService.currentUser. Team lấy theo ngày hiện tại UTC+7, không theo snapshot kỳ đăng ký; cập nhật khi đăng nhập/refresh phiên. Không có team hiện tại thì hiển thị thông báo tương ứng.
+Header MainLayout hiển thị họ tên và mã nhân viên trên mọi tab, lấy từ AuthService.currentUser, cùng nút Đăng xuất.

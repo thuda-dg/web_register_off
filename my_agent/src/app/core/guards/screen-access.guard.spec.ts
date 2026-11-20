@@ -57,7 +57,7 @@ describe('Screen access by role', () => {
     ] });
     const fixture = TestBed.createComponent(MainLayoutComponent); fixture.detectChanges();
     const header = fixture.nativeElement.querySelector('header').textContent;
-    expect(header).toContain('Nguyễn An'); expect(header).toContain('E002'); expect(header).toContain('Team A');
+    expect(header).toContain('Nguyễn An'); expect(header).toContain('E002'); expect(header).not.toContain('Team A');
     expect(fixture.nativeElement.querySelector('[href="/published"]')).toBeNull();
     expect(fixture.nativeElement.querySelector('[href="/schedule"]')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('[href="/history"]')).not.toBeNull();
