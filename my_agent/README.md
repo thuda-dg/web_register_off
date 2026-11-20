@@ -86,7 +86,7 @@ thay đổi theo bộ lọc của bảng. Test backend thống kê: `node --test
 
 - Client có `getMyEntries()` gọi `/api/registration/my-entries`, nhưng backend chưa mount endpoint tương ứng. Đừng nhầm với `/history` đã có API.
 - `core/services/wfm-api.service.ts` và `app/wfm-api.service.ts` đều là service mẫu; kiểm tra import của component trước khi sửa.
-- Published schedule và RequireHC đã gọi API đọc dữ liệu thật; các hàm duyệt/công bố trong service mẫu chưa phải API thay đổi trạng thái.
+- Published schedule và RequireHC dùng API thật. TEAM_LEAD có thao tác công bố OFF tại Published; các service mẫu không phải nguồn của thao tác này.
 - Quy tắc giao diện và backend có thể khác nhau; validator backend quyết định dữ liệu có được lưu hay không. Đặc biệt rule OFF trước có service riêng nhưng chưa nằm trong validator backend chính.
 
 ## Lịch đã công bố
@@ -102,7 +102,14 @@ khi kết quả rỗng hoặc lỗi mạng. Ba thống kê đầu tính trên to
 Đang hiển thị tính trên kết quả lọc. Thời điểm công bố lấy action PUBLISHED mới
 nhất, hiển thị giờ +07; thiếu action thì hiện dấu gạch ngang, không lấy ngày gửi thay thế.
 
-Trang Published chỉ đọc. Duyệt/từ chối OFF thực hiện tại `/approvals`; chưa có thao tác công bố đơn. Không cần migration mới.
+TEAM_LEAD có phần **Công bố lịch OFF** ngay trên tab Published. Chọn một kỳ,
+xem các ngày OFF đã duyệt của nhân viên cùng team hiện tại (loại trừ bản thân),
+bấm Công bố lịch OFF rồi xác nhận. Nếu còn PENDING_TL trong phạm vi kỳ/team thì
+phải duyệt hoặc từ chối hết trước. Chỉ APPROVED chuyển sang PUBLISHED; REJECTED,
+CANCELLED và các đơn đã PUBLISHED được giữ nguyên. ADMIN đơn thuần không có
+quyền này. Nút Làm mới tải lại cả lịch đã công bố và danh sách chờ, giữ bộ lọc.
+Danh sách thay đổi sau lúc mở xác nhận trả 409, yêu cầu tải và xác nhận lại;
+không công bố thêm các đơn chưa có trong bản xem trước. Không cần migration mới.
 Test: npm test -- --watch=false --include=src/app/features/published-schedule/published-schedule.spec.ts
 
 ## RequireHC
@@ -138,10 +145,24 @@ Mặc định lọc Chờ duyệt. Lọc kỳ, trạng thái và tìm mã/tên n
 AND. Làm mới giữ bộ lọc, chặn tải trùng và giữ dữ liệu khi lỗi mạng.
 
 Duyệt/Từ chối mở modal xác nhận, ghi chú tối đa 1000 ký tự; từ chối bắt buộc lý do.
-Chỉ PENDING_TL active được xử lý. Duyệt -> APPROVED; từ chối -> REJECTED. Ghi chú,
-ngày xử lý, thống kê và danh sách cập nhật ngay khi thành công. Đơn đã xử lý
-không còn nút thao tác; xung đột 409 sẽ tải lại danh sách. Không có duyệt hàng loạt
-hoặc tự động công bố. APPROVED chưa xuất hiện trong Published.
+PENDING_TL active được duyệt -> APPROVED hoặc từ chối -> REJECTED. APPROVED vẫn
+có nút Từ chối (bắt buộc lý do) trước khi publish; PUBLISHED không thể duyệt/từ
+chối nữa. Ghi chú, ngày xử lý, thống kê và danh sách cập nhật khi thành công;
+xung đột 409 tải lại danh sách. Không tự động công bố khi duyệt.
+
+## Nhân viên xem kết quả sau công bố
+
+Lịch sử cá nhân vẫn hiển thị OFF đã gửi. Trước khi publish, backend trả OFF
+APPROVED dưới trạng thái PENDING_TL (nhãn **Chờ xử lý**), approvedAt=null và tính
+vào summary.pending; không đổi trạng thái thật trong DB. Quyết định từ chối vẫn
+hiển thị. Khi PUBLISHED, lịch sử hiển thị kết quả công bố và thời điểm đã duyệt.
+
+Schedule có phần **Lịch OFF của tôi đã công bố** độc lập với bootstrap/cửa sổ
+đăng ký, vẫn xem được khi cổng đóng hoặc bootstrap chưa tải xong. Gọi
+GET /api/registration/published?mine=true; backend xác định chủ đơn từ JWT.
+Chỉ hiển thị OFF PUBLISHED, có lọc kỳ và nút Làm mới lịch OFF, giữ lựa chọn khi
+rỗng/lỗi. Published tiếp tục là lịch chung PUBLISHED của mọi team.
+Không tự đẩy realtime: mở lại trang hoặc bấm Làm mới để nhận kết quả mới.
 
 Từ chối giải phóng số dư OFF và slot ở lần tải tiếp theo do trạng thái REJECTED
 không nằm trong ACTIVE_BALANCE_STATUSES. Không sửa snapshot team/task.

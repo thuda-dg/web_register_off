@@ -1,5 +1,7 @@
 import { finalize, Subscription } from 'rxjs';
-import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, computed, inject, ViewChild } from '@angular/core';
+import { AuthService } from '../../core/services/auth.service';
+import { PublishOffPanel } from './components/publish-off-panel/publish-off-panel';
 import {PublishedScheduleFilterOptions,PublishedScheduleFiltersValue,PublishedScheduleRow,PublishedScheduleSummary} from '../../core/models/published-schedule.models';
 import {PublishedScheduleService} from '../../core/services/published-schedule.service';
 import {PublishedFilters} from './components/published-filters/published-filters';
@@ -10,6 +12,7 @@ import {PublishedTable} from './components/published-table/published-table';
   selector: 'app-published-schedule',
   standalone: true,
   imports: [
+    PublishOffPanel,
     PublishedSummary,
     PublishedFilters,
     PublishedTable
@@ -17,6 +20,10 @@ import {PublishedTable} from './components/published-table/published-table';
   templateUrl: './published-schedule.html'
 })
 export class PublishedSchedule implements OnInit, OnDestroy {
+  private readonly auth = inject(AuthService);
+  readonly canPublish = computed(() => this.auth.currentUser()?.roles?.some(role => role.roleCode === 'TEAM_LEAD') ?? false);
+  @ViewChild(PublishOffPanel) publicationPanel?: PublishOffPanel;
+  refresh(): void { this.loadPublishedSchedule(); this.publicationPanel?.load(); }
   private request?: Subscription;
   loading = false;
   errorMessage = '';

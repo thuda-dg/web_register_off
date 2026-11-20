@@ -40,3 +40,8 @@ export interface PublishedScheduleResponse {
   rows: PublishedScheduleRow[];
   msg?: string;
 }
+export interface PublishOffResponse {
+  ok: boolean;
+  message: string;
+  data: { cycleId: number; teamId: number; entryIds: number[]; publishedCount: number; publishedAt: string };
+}

@@ -54,8 +54,9 @@ Prefix chung: `/api`. Endpoint cần phiên dùng `Authorization: Bearer <access
 | POST | `/registration/submit` | Đăng nhập; validate lại rồi lưu trong transaction |
 | GET | `/registration/history` | Đăng nhập; lịch sử của `empId` trong JWT |
 | GET | `/registration/approvals` | TEAM_LEAD hiện tại từ DB; OFF của nhân viên cùng team, loại trừ bản thân |
-| PATCH | `/registration/approvals/:entryId` | TEAM_LEAD; duyệt/từ chối entry OFF đang PENDING_TL |
+| PATCH | `/registration/approvals/:entryId` | TEAM_LEAD; duyệt PENDING_TL, từ chối PENDING_TL/APPROVED chưa công bố |
 | GET | `/registration/published` | Đăng nhập; lịch PUBLISHED đang active của tất cả các team |
+| POST | `/registration/published` | TEAM_LEAD từ DB; công bố các OFF đã duyệt theo kỳ/team hiện tại |
 | GET | `/registration/require-hc` | Đăng nhập; capacity và số OFF đang chiếm slot theo kỳ/ngày/task |
 | GET | `/admin/getall` | Đăng nhập; hiện chưa yêu cầu ADMIN |
 | GET | `/admin/registration-cycles` | ADMIN từ DB; danh sách kỳ và lịch mở/đóng |
@@ -68,7 +69,7 @@ Prefix chung: `/api`. Endpoint cần phiên dùng `Authorization: Bearer <access
 | PATCH | `/admin/users/:employeeId/team` | ADMIN từ DB; gán một team active cho nhân viên |
 | PATCH | `/admin/users/:employeeId/task` | ADMIN từ DB; gán một task active cho nhân viên |
 
-Không thêm vào tài liệu API hoạt động chỉ vì thấy một file router hoặc method client: `/registration/my-entries`, calendar/leave-reasons và thao tác công bố chưa có trong tập route được mount. Duyệt/từ chối OFF đã có API approvals.
+Không thêm vào tài liệu API hoạt động chỉ vì thấy một file router hoặc method client: `/registration/my-entries` và calendar/leave-reasons chưa được mount. Duyệt/từ chối OFF dùng approvals; công bố dùng POST published.
 
 Ví dụ body (các ID phải tồn tại trong DB của bạn):
 
@@ -92,7 +93,7 @@ Ví dụ body (các ID phải tồn tại trong DB của bạn):
 }
 ```
 
-PATCH role nhận `{ "roleIds": [1, 2] }`; tham số URL là **emp_id**, không phải user_account_id. Role phải active, ít nhất một role; thao tác khóa hàng account và lưu trong transaction. Grant bị bỏ được kết thúc vào hôm trước; grant tạo trong cùng ngày được xóa nếu bỏ để tránh period không hợp lệ. Không tự cấp role còn thiếu trong danh mục.
+PATCH role nhận `{ "roleIds": [1] }`; tham số URL là **emp_id**, không phải user_account_id. Role phải active, đúng một role; thao tác khóa hàng account và lưu trong transaction. Grant bị bỏ được kết thúc vào hôm trước; grant tạo trong cùng ngày được xóa nếu bỏ để tránh period không hợp lệ. Không tự cấp role còn thiếu trong danh mục.
 
 ## Khởi tạo tài khoản và dữ liệu đăng ký
 
@@ -212,6 +213,8 @@ employee, cycle, team theo entry snapshot, leave type và lý do. Không trả e
 token hay thông tin tài khoản. Thời điểm công bố lấy action PUBLISHED mới nhất;
 nếu thiếu action thì publishedAt=null. API không duyệt/công bố hay thay đổi DB.
 Tất cả user đăng nhập có thể xem lịch đã công bố của các team, phù hợp trang lịch chung.
+Thêm `?mine=true` để chỉ xem bản thân: emp_id lấy từ JWT qua getAuthenticatedEmpId,
+không tin empId client gửi. Schedule dùng chế độ này và chỉ render OFF.
 Test stub model: node --test src/test-published-schedule.js.
 
 ## API đọc RequireHC
@@ -238,8 +241,9 @@ team active; không có hoặc dữ liệu chồng lấn trả 409 INVALID_LEAD_
 cho tự duyệt/từ chối, không xử lý loại nghỉ ngoài OFF hoặc entry inactive.
 Team snapshot trên đơn không bị thay khi nhân viên chuyển team.
 
-Chỉ PENDING_TL được duyệt/từ chối. Cập nhật APPROVED/REJECTED và thêm action
-TL_APPROVED/TL_REJECTED, old_status=PENDING_TL, new_status tương ứng,
+PENDING_TL được duyệt/từ chối; APPROVED được từ chối trước khi công bố. Không
+đổi quyết định khi PUBLISHED. Cập nhật APPROVED/REJECTED và thêm action
+TL_APPROVED/TL_REJECTED, old_status lấy đúng trạng thái trước cập nhật, new_status tương ứng,
 performed_by_user_id là user_account_id của lead, note và created_at trong cùng
 transaction. Khóa theo thứ tự employee chủ đơn -> entry -> RequireHC, tương thích
 submit. Hai lead xử lý cùng một đơn: lượt sau nhận 409 ENTRY_ALREADY_DECIDED.
@@ -248,6 +252,34 @@ Không tự publish; không chạy lại validation hạn mức khi duyệt vì 
 chiếm số dư/slot. REJECTED không còn chiếm số dư/slot.
 
 Test stub model không ghi DB: node --test src/test-off-approval.js.
+
+## TEAM_LEAD công bố OFF
+
+POST /api/registration/published nhận `{ "cycleId": 2, "entryIds": [7, 8] }`.
+GET approvals cung cấp danh sách chờ xem trước tại tab Published. Chỉ TEAM_LEAD
+còn hiệu lực từ DB, account ACTIVE, employee active, đúng một team active hiện
+tại mới được công bố. Phạm vi giống duyệt: OFF active của nhân viên hiện tại
+cùng team, loại trừ bản thân, một kỳ được chọn. Không suy quyền từ ADMIN.
+
+Trong transaction, khóa các employee trong phạm vi theo emp_id tăng dần (gồm
+cả người chưa có đơn), rồi khóa entry; tương thích submit và decide. Chặn khi
+còn PENDING_TL (409 PENDING_OFF_REMAINS). entryIds phải khớp chính xác toàn bộ
+APPROVED hiện tại; bản xem trước cũ, thiếu/thừa ID, ID ngoài phạm vi hoặc công
+bố lại trả 409 PUBLICATION_CHANGED. Payload không hợp lệ trả 400 INVALID_PUBLICATION.
+
+Đổi đồng loạt APPROVED -> PUBLISHED và tạo một action PUBLISHED cho mỗi entry,
+old_status=APPROVED, new_status=PUBLISHED, actor=user_account_id của lead,
+cùng thời điểm công bố. Lỗi ở bất kỳ bước nào rollback toàn bộ. Giữ nguyên
+REJECTED/CANCELLED/PUBLISHED và các kỳ/team khác. Cả APPROVED/PUBLISHED đều
+thuộc ACTIVE_BALANCE_STATUSES nên không đổi số dư hoặc slot khi công bố.
+Không có unpublish, không tự đóng cửa sổ submit; nếu có đơn mới, cần xử lý và
+công bố đợt tiếp theo. Không thêm schema/migration.
+
+GET history che kết quả duyệt OFF trước công bố: APPROVED được trả PENDING_TL,
+approvedAt=null và tính vào pending. DB và API duyệt vẫn giữ trạng thái thật.
+Chỉ sau PUBLISHED mới trả thời điểm duyệt cho nhân viên. Quy tắc này không đổi
+luồng AL. Test stub không ghi DB: `node --test src/test-off-publication.js
+src/test-off-approval.js src/test-published-schedule.js src/test-history-summary.js`.
 
 ## Import Excel RequireHC (ADMIN)
 

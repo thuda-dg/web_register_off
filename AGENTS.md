@@ -25,7 +25,7 @@
 - Nhận diện nhân viên từ JWT ở API cá nhân; không tin `empId` client gửi khi API không cho phép thao tác thay người khác.
 - Tạo user/cập nhật role yêu cầu `authMiddleware` + `requireAdmin`. Kiểm tra quyền backend là bắt buộc dù giao diện đã ẩn nút.
 - Role theo thời hạn phải lọc role active, `start_date <= today`, `end_date` null hoặc còn hiệu lực. Dùng `getActiveRoles` trong auth; không trả lại grant lịch sử như quyền hiện tại.
-- User có nhiều role. Không đổi về một chuỗi role đơn; không nhầm `emp_id` với `user_account_id`.
+- Tạo/gán user chỉ nhận đúng một role (roleIds dài 1); DTO/auth vẫn giữ mảng roles để tương thích và giữ lịch sử grant. Không tự đổi grant cũ trong DB; giữ Admin của vienvietvo. Không nhầm `emp_id` với `user_account_id`.
 - Team update yêu cầu ADMIN và đúng một team active. Khóa employee trong transaction, kết thúc assignment cũ trước ngày bắt đầu mới; xử lý lần gán cùng ngày và không tạo overlap. Không tự ghi đè lịch chuyển team tương lai hoặc snapshot đăng ký đã lưu.
 - Role update giữ lịch sử grant trước ngày hiện tại, xử lý grant cùng ngày và khóa account trong transaction. Tạo employee/account/role/team và submit submission/entry/action đều cần transaction thống nhất.
 - Password dùng util bcrypt; không lưu/trả plaintext. Access token ở memory client, refresh token ở HttpOnly cookie, DB giữ hash. Không thêm token vào localStorage hoặc log.
@@ -78,6 +78,6 @@ node --test src/test-admin-team.js
 ## Tài liệu và bàn giao
 
 - Cập nhật README khi đổi cách chạy, env, API, quyền hoặc mức hoàn thiện chức năng.
-- Nêu chính xác route đã mount và tính năng mock/chưa nối; `/registration/my-entries` đang thiếu route, calendar/leave-reasons chưa mount, thao tác công bố chưa có API. Duyệt/từ chối OFF đã có `/registration/approvals`, chỉ TEAM_LEAD từ DB, nhân viên cùng team hiện tại và không tự duyệt.
+- Nêu chính xác route đã mount và tính năng mock/chưa nối; `/registration/my-entries` đang thiếu route, calendar/leave-reasons chưa mount. Duyệt/từ chối OFF dùng `/registration/approvals`, công bố dùng `POST /registration/published`; chỉ TEAM_LEAD từ DB, nhân viên cùng team hiện tại và loại trừ bản thân. APPROVED được từ chối trước publish; PUBLISHED không đổi quyết định. Lịch sử cá nhân che kết quả duyệt OFF đến khi công bố; Schedule dùng GET published?mine=true lấy chủ đơn từ JWT.
 - API đăng ký tài khoản vẫn công khai; `/admin/getall` chỉ yêu cầu đăng nhập. Không mô tả toàn bộ hệ thống là ADMIN-only.
 - Báo rõ đã sửa gì, đã kiểm tra gì và giới hạn còn lại. Không nói build/test thành công nếu chưa chạy hoặc chưa thấy kết quả.

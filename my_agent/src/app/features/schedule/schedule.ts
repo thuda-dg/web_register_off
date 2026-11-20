@@ -19,6 +19,7 @@ import { SelectedDateList } from './components/selected-date-list/selected-date-
 import { ConfirmRegistrationModal } from './components/confirm-registration-modal/confirm-registration-modal';
 import { ClosedBanner } from './components/closed-banner/closed-banner';
 import { DoneBanner } from './components/done-banner/done-banner';
+import { MyPublishedOffs } from './components/my-published-offs/my-published-offs';
 
 import {
   RegistrationService
@@ -43,7 +44,8 @@ import {
     SelectedDateList,
     ConfirmRegistrationModal,
     ClosedBanner,
-    DoneBanner
+    DoneBanner,
+    MyPublishedOffs
   ],
   templateUrl: './schedule.html',
 })

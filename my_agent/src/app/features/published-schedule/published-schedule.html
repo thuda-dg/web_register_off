@@ -13,12 +13,14 @@
     <button
       type="button"
       class="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold hover:bg-slate-300 disabled:opacity-60"
-      [disabled]="loading"
-      (click)="loadPublishedSchedule()"
+      [disabled]="loading || !!publicationPanel?.saving() || !!publicationPanel?.confirmation()"
+      (click)="refresh()"
     >
       {{ loading ? 'Đang tải...' : 'Làm mới' }}
     </button>
   </header>
+
+  @if (canPublish()) { <app-publish-off-panel (published)="loadPublishedSchedule()" /> }
 
   <app-published-summary
     [summary]="summary"

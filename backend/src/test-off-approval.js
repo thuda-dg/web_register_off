@@ -114,11 +114,22 @@ test('cannot approve self, another team, non-OFF/inactive entries or already dec
   state.empId = 20; state.sameTeam = false;
   await assert.rejects(decideOff(10, 7, { decision: 'approve' }), { statusCode: 403 });
   state.sameTeam = true;
-  for (const status of ['APPROVED', 'REJECTED', 'PUBLISHED', 'CANCELLED']) {
+  for (const status of ['REJECTED', 'PUBLISHED', 'CANCELLED']) {
     state.status = status;
     await assert.rejects(decideOff(10, 7, { decision: 'reject', note: 'x' }), { statusCode: 409 });
   }
   assert.equal(state.actions.length, 0);
+});
+
+test('can reject APPROVED before publish, records correct old status, but cannot change PUBLISHED', async () => {
+  const state = setup(); state.status = 'APPROVED';
+  await assert.rejects(decideOff(10, 7, { decision: 'reject' }), { statusCode: 400 });
+  await assert.rejects(decideOff(10, 7, { decision: 'approve' }), { statusCode: 409 });
+  await decideOff(10, 7, { decision: 'reject', note: 'Cần điều chỉnh' });
+  assert.equal(state.status, 'REJECTED'); assert.equal(state.actions[0].old_status, 'APPROVED');
+  state.status = 'PUBLISHED';
+  await assert.rejects(decideOff(10, 7, { decision: 'reject', note: 'x' }), { statusCode: 409 });
+  assert.equal(state.actions.length, 1);
 });
 
 test('malformed ids, decisions and notes are rejected before a write', async () => {

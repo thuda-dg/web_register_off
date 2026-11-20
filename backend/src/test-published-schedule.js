@@ -41,3 +41,16 @@ test('does not fallback to mock data on database failure', async () => {
   RegistrationEntry.findAll = async () => { throw new Error('database unavailable'); };
   await assert.rejects(getPublishedSchedule(), /database unavailable/);
 });
+
+test('personal published schedule restricts submission owner from JWT and never queries APPROVED', async () => {
+  const { published } = require('./controllers/registration.controller');
+  RegistrationEntry.findAll = async options => {
+    assert.equal(options.where.current_status, 'PUBLISHED');
+    assert.equal(options.include.find(include => include.as === 'submission').where.emp_id, 3);
+    return [];
+  };
+  let response;
+  const res = { status() { return this; }, json(body) { response = body; } };
+  await published({ user: { empId: 3 }, query: { mine: 'true', empId: '999' } }, res, error => { throw error; });
+  assert.deepEqual(response.rows, []);
+});

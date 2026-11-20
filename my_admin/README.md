@@ -30,13 +30,13 @@ Riêng API danh sách `/api/admin/getall` hiện chỉ yêu cầu đăng nhập;
 
 ## Danh sách nhân viên
 
-Hiển thị tên, team hiện tại và các role hiện tại. Backend chỉ lấy employee active; nhân viên chưa có team/role vẫn được trả về. Mỗi dòng có nút **Cập nhật role** nếu người đang đăng nhập có ADMIN.
+Hiển thị họ tên, mã nhân viên, email, team, task và role hiện tại. Mã nhân viên/email dùng dữ liệu API; thiếu giá trị hiển thị dấu “—”. Backend chỉ lấy employee active; nhân viên chưa có team/role vẫn được trả về. Mỗi dòng có nút **Cập nhật role** nếu người đang đăng nhập có ADMIN.
 
 ## Tạo nhân viên kèm user
 
 1. Chọn **+ Tạo user mới**.
 2. Nhập mã nhân viên, họ tên, email, mật khẩu và xác nhận mật khẩu.
-3. Chọn team nếu cần và ít nhất một role active. EMPLOYEE được chọn sẵn khi có trong danh mục.
+3. Chọn team nếu cần và đúng một role active. EMPLOYEE được chọn sẵn khi có trong danh mục.
 4. Chọn **Tạo user**. Dòng mới xuất hiện ngay sau khi API lưu thành công.
 
 Mã nhân viên tối đa 50 ký tự, họ tên 150, email 255; mã/email không được trùng. Mật khẩu từ 8 ký tự và tối đa 72 byte UTF-8. Tài khoản được tạo ACTIVE, mật khẩu băm bcrypt; có thể đăng nhập ngay bằng mã hoặc email.
@@ -46,8 +46,8 @@ Employee, account, role và team tùy chọn được lưu cùng một transacti
 ## Cập nhật role trên từng dòng
 
 1. Chọn **Cập nhật role** tại đúng nhân viên.
-2. Phần chỉnh sửa mở ngay dưới dòng, chọn sẵn role hiện có và cho chọn nhiều role bằng checkbox.
-3. Chọn **Lưu role** hoặc **Hủy**. Cần ít nhất một role active.
+2. Phần chỉnh sửa mở ngay dưới dòng, chọn đúng một role bằng radio; user đang có ADMIN được chọn sẵn ADMIN.
+3. Chọn **Lưu role** hoặc **Hủy**. Cần đúng một role active.
 
 Nhân viên phải có account đăng nhập. Lưu xong cột Role cập nhật ngay; khi lỗi vẫn giữ lựa chọn để thử lại. Không có trang detail riêng cho thao tác này.
 
@@ -99,7 +99,7 @@ vẫn yêu cầu team/task có hiệu lực vào ngày bắt đầu kỳ. Số d
 | PATCH | `/api/admin/users/:employeeId/roles` | ADMIN hiện tại |
 | PATCH | `/api/admin/users/:employeeId/team` | ADMIN hiện tại |
 
-Body PATCH: `{ "roleIds": [1, 2] }`. `employeeId` là ID nhân viên, không phải ID tài khoản. Team/role ID lấy từ options API, không hardcode.
+Body PATCH: `{ "roleIds": [1] }`. `employeeId` là ID nhân viên, không phải ID tài khoản. Team/role ID lấy từ options API, không hardcode.
 
 Body PATCH team: `{ "teamId": 2 }`; bắt buộc một ID nguyên dương, không nhận mảng hoặc null.
 
@@ -190,3 +190,5 @@ RequireHC hay số dư OFF; cần cấu hình các dữ liệu đó riêng. Khô
 đã có và không cần migration mới. Quyền bypass lịch của ADMIN trong luồng đăng
 ký hiện có vẫn được giữ. Test backend không ghi DB:
 `node --test src/test-admin-registration-cycle.js`.
+
+Mỗi lần tạo/cập nhật role chỉ nhận đúng một ID. API từ chối mảng rỗng hoặc nhiều ID. Role cũ khác lựa chọn được kết thúc theo lịch sử trong transaction; nếu có grant tương lai thì trả 409 để xử lý trước. Không tự chuẩn hóa DB hiện có, không đổi role Admin của vienvietvo.

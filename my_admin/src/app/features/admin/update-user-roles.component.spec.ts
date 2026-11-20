@@ -5,7 +5,7 @@ import { UpdateUserRolesComponent } from './update-user-roles.component';
 import { AdminService } from '../../core/services/admin.services';
 import { UpdateUserRolesResponse } from '../../core/models/admin.model';
 
-function setup(loadError = false) {
+function setup(loadError = false, currentRoles = [{ id: 1, name: 'Employee' }], employeeCode = 'NV001') {
   const options = { ok: true, teams: [], roles: [
     { id: 1, name: 'Employee', code: 'EMPLOYEE' }, { id: 2, name: 'Admin', code: 'ADMIN' }
   ] };
@@ -18,21 +18,27 @@ function setup(loadError = false) {
   });
   const fixture = TestBed.createComponent(UpdateUserRolesComponent);
   fixture.componentRef.setInput('employee', {
-    id: 10, fullName: 'Nguyễn An', employeeCode: 'NV001', email: 'an@example.com',
-    teamId: null, teamName: null, roles: [{ id: 1, name: 'Employee' }]
+    id: 10, fullName: 'Nguyễn An', employeeCode, email: 'an@example.com',
+    teamId: null, teamName: null, roles: currentRoles
   });
   fixture.detectChanges();
   return { fixture, component: fixture.componentInstance, service, options };
 }
 
 describe('UpdateUserRolesComponent', () => {
-  it('preselects current roles and supports multiple selections', () => {
+  it('keeps Admin selected for vienvietvo even when legacy data contains multiple roles', () => {
+    const { component, service } = setup(false, [{ id: 1, name: 'Employee' }, { id: 2, name: 'Admin' }], 'vienvietvo');
+    service.updateUserRoles.mockReturnValue(of({ ok: true, employeeId: 10, roles: [{ id: 2, name: 'Admin' }] }));
+    expect(component.selectedIds()).toEqual([2]); component.save();
+    expect(service.updateUserRoles).toHaveBeenCalledWith(10, [2]);
+  });
+  it('preselects current role and replaces it when selecting another', () => {
     const { component, fixture } = setup();
     expect(component.selectedIds()).toEqual([1]);
     expect(fixture.nativeElement.textContent).toContain('Nguyễn An');
     component.toggleRole(2, true);
     component.toggleRole(2, true);
-    expect(component.selectedIds()).toEqual([1, 2]);
+    expect(component.selectedIds()).toEqual([2]);
     component.toggleRole(1, false);
     expect(component.selectedIds()).toEqual([2]);
   });
@@ -42,7 +48,7 @@ describe('UpdateUserRolesComponent', () => {
     component.toggleRole(1, false);
     component.save();
     expect(service.updateUserRoles).not.toHaveBeenCalled();
-    expect(component.error()).toContain('ít nhất một role');
+    expect(component.error()).toContain('đúng một role');
   });
 
   it('sends the employee id, prevents duplicate saves and emits the saved roles', () => {
@@ -56,7 +62,7 @@ describe('UpdateUserRolesComponent', () => {
     component.toggleRole(2, true);
     component.save();
     component.save();
-    expect(service.updateUserRoles).toHaveBeenCalledExactlyOnceWith(10, [1, 2]);
+    expect(service.updateUserRoles).toHaveBeenCalledExactlyOnceWith(10, [2]);
     const response = { ok: true, message: 'Saved', employeeId: 10, roles: [{ id: 2, name: 'Admin' }] };
     pending.next(response);
     pending.complete();

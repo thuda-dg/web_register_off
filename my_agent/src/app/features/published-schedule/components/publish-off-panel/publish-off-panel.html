@@ -1,0 +1,44 @@
+<section class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-5" aria-label="Công bố OFF của team">
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <div><h3 class="font-bold text-emerald-800">Công bố lịch OFF · {{ team() }}</h3>
+      <p class="mt-1 text-sm text-slate-600">Chọn kỳ để công bố toàn bộ đơn đã duyệt của nhân viên cùng team hiện tại, không bao gồm đơn của bạn.</p>
+      <p class="mt-1 text-sm text-slate-600">Nhân viên chỉ thấy kết quả duyệt sau khi công bố. Đơn từ chối được giữ nguyên.</p>
+    </div>
+    <button type="button" (click)="load()" [disabled]="loading() || saving() || !!confirmation()" class="rounded-lg border bg-white px-4 py-2 text-sm disabled:opacity-50">{{ loading() ? 'Đang tải...' : 'Làm mới danh sách chờ' }}</button>
+  </div>
+  <label class="mt-4 block max-w-lg text-sm font-medium">Kỳ cần công bố
+    <select [ngModel]="cycle()" (ngModelChange)="changeCycle($event)" [disabled]="loading() || saving() || !!confirmation()" class="mt-1 block w-full rounded-lg border bg-white p-2">
+      <option value="">Chọn một kỳ đăng ký</option>
+      @for (option of cycles(); track option.value) { <option [value]="option.value">{{ option.label }}</option> }
+    </select>
+  </label>
+  @if (loading()) { <p role="status" class="mt-3 text-sm">Đang tải các đơn của team...</p> }
+  @if (error()) { <p role="alert" class="mt-3 text-sm text-red-800">{{ error() }}</p> }
+  @if (success()) { <p role="status" class="mt-3 text-sm font-medium text-emerald-800">{{ success() }}</p> }
+  @if (cycle()) {
+    <p class="mt-3 text-sm">Đã duyệt, chưa công bố: <strong>{{ approved().length }}</strong> ngày OFF · Chờ duyệt: <strong>{{ pending() }}</strong></p>
+    @if (pending()) { <p class="mt-2 text-sm text-amber-800">Cần xử lý hết đơn chờ duyệt trước khi công bố. <a routerLink="/approvals" class="font-semibold underline">Mở tab Duyệt OFF</a></p> }
+    @if (approved().length) {
+      <div class="mt-3 max-h-72 overflow-auto rounded-lg border bg-white">
+        <table class="w-full text-left text-sm"><thead class="bg-slate-50"><tr><th class="p-3">Nhân viên</th><th class="p-3">Ngày OFF</th><th class="p-3">Task</th></tr></thead><tbody>
+          @for (row of approved(); track row.entryId) { <tr class="border-t"><td class="p-3">{{ row.employeeName }} <span class="text-slate-500">({{ row.employeeCode }})</span></td><td class="p-3">{{ row.date | date:'dd/MM/yyyy' }}</td><td class="p-3">{{ row.taskName }}</td></tr> }
+        </tbody></table>
+      </div>
+    } @else if (!loading() && !error()) { <p class="mt-3 text-sm text-slate-500">Không có đơn đã duyệt cần công bố trong kỳ này.</p> }
+  }
+  <button type="button" (click)="open()" [disabled]="!canPublish() || !!confirmation()" class="mt-4 rounded-lg bg-emerald-700 px-5 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">Công bố lịch OFF</button>
+</section>
+@if (confirmation(); as data) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" (keydown.escape)="close()">
+    <section role="dialog" aria-modal="true" aria-labelledby="publish-title" class="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl">
+      <h3 id="publish-title" class="text-lg font-bold">Xác nhận công bố lịch OFF</h3>
+      <p class="mt-3 text-sm">{{ data.cycleName }} · {{ team() }} · {{ data.entryIds.length }} ngày OFF đã duyệt.</p>
+      <p class="mt-3 text-sm">Sau khi công bố, nhân viên xem được lịch tại Schedule và Published. TEAM_LEAD không thể từ chối các đơn này nữa.</p>
+      @if (error()) { <p role="alert" class="mt-3 text-sm text-red-800">{{ error() }}</p> }
+      <div class="mt-5 flex justify-end gap-3">
+        <button type="button" (click)="close()" [disabled]="saving()" class="rounded-lg border px-4 py-2 disabled:opacity-50">Hủy</button>
+        <button type="button" (click)="confirm()" [disabled]="saving()" class="rounded-lg bg-emerald-700 px-4 py-2 font-semibold text-white disabled:opacity-50">{{ saving() ? 'Đang công bố...' : 'Xác nhận công bố' }}</button>
+      </div>
+    </section>
+  </div>
+}

@@ -52,8 +52,8 @@ async function createUser(payload = {}) {
   if (typeof password !== 'string' || password.length < 8 || Buffer.byteLength(password, 'utf8') > 72) {
     throw invalid('Mật khẩu phải có ít nhất 8 ký tự và không vượt quá 72 byte.');
   }
-  if (!Array.isArray(roleIds) || !roleIds.length || !roleIds.every(id => Number.isSafeInteger(id) && id > 0)) {
-    throw invalid('Vui lòng chọn ít nhất một role hợp lệ.');
+  if (!Array.isArray(roleIds) || roleIds.length !== 1 || !roleIds.every(id => Number.isSafeInteger(id) && id > 0)) {
+    throw invalid('Vui lòng chọn đúng một role hợp lệ.');
   }
   if (teamId != null && (!Number.isSafeInteger(teamId) || teamId <= 0)) {
     throw invalid('Team không hợp lệ.');
@@ -109,9 +109,9 @@ async function createUser(payload = {}) {
 async function updateUserRoles(employeeId, payload = {}) {
   const id = Number(employeeId);
   const { roleIds } = payload;
-  if (!Number.isSafeInteger(id) || id <= 0 || !Array.isArray(roleIds) || !roleIds.length ||
+  if (!Number.isSafeInteger(id) || id <= 0 || !Array.isArray(roleIds) || roleIds.length !== 1 ||
       !roleIds.every(roleId => Number.isSafeInteger(roleId) && roleId > 0)) {
-    throw invalid('Vui lòng chọn ít nhất một role hợp lệ.');
+    throw invalid('Vui lòng chọn đúng một role hợp lệ.');
   }
   const ids = [...new Set(roleIds)];
   return sequelize.transaction(async transaction => {
@@ -131,10 +131,13 @@ async function updateUserRoles(employeeId, payload = {}) {
     const assignments = await UserRole.findAll({
       where: {
         user_account_id: account.user_account_id,
-        start_date: { [Op.lte]: today },
         [Op.or]: [{ end_date: null }, { end_date: { [Op.gte]: today } }]
       }, transaction
     });
+    if (assignments.some(item => item.start_date > today)) {
+      const error = new Error('User đã có lịch đổi role trong tương lai. Vui lòng xử lý lịch đó trước.');
+      error.statusCode = 409; error.code = 'FUTURE_ROLE_ASSIGNMENT'; throw error;
+    }
     const currentIds = new Set(assignments.map(item => Number(item.role_id)));
     for (const assignment of assignments) {
       if (!ids.includes(Number(assignment.role_id))) {

@@ -172,7 +172,7 @@ export class History implements OnInit, OnDestroy {
 
   private getStatusLabel(status: string): string {
     const map: Record<string, string> = {
-      PENDING_TL: 'Chờ TL duyệt',
+      PENDING_TL: 'Chờ xử lý',
       APPROVED: 'TL đã duyệt',
       TL_APPROVED: 'TL đã duyệt',
       REJECTED: 'TL từ chối',

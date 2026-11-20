@@ -3,13 +3,14 @@ const {
   RegistrationAction, Employee, Team, LeaveType, LeaveReason
 } = require('../models');
 
-async function getPublishedSchedule() {
+async function getPublishedSchedule({ empId } = {}) {
   const entries = await RegistrationEntry.findAll({
     where: { is_active: true, current_status: 'PUBLISHED' },
     attributes: ['entry_id', 'leave_date', 'custom_reason'],
     include: [
       {
         model: RegistrationSubmission, as: 'submission', required: true, attributes: ['submission_id'],
+        ...(empId == null ? {} : { where: { emp_id: empId } }),
         include: [
           { model: Employee, as: 'employee', required: true, attributes: ['emp_code', 'emp_name'] },
           { model: RegistrationCycle, as: 'cycle', required: true, attributes: ['cycle_id', 'cycle_name'] }

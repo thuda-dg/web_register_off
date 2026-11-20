@@ -10,7 +10,7 @@ import { EmployeeItem, EmployeeRole, UpdateUserRolesResponse } from '../../core/
     <section aria-labelledby="update-role-title" class="rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-left">
       <h3 id="update-role-title" class="font-semibold">Cập nhật role: {{ employee().fullName }}</h3>
       <p class="mt-1 text-sm text-slate-500">{{ employee().employeeCode }} · {{ employee().email }}</p>
-      <p class="mt-2 text-sm text-slate-600">Chọn ít nhất một role. Quyền trong phiên đăng nhập của user được cập nhật khi làm mới phiên hoặc đăng nhập lại.</p>
+      <p class="mt-2 text-sm text-slate-600">Chọn đúng một role. Quyền trong phiên đăng nhập của user được cập nhật khi làm mới phiên hoặc đăng nhập lại.</p>
       @if (error()) {
         <p role="alert" class="mt-3 text-sm text-red-700">{{ error() }}</p>
       }
@@ -23,7 +23,7 @@ import { EmployeeItem, EmployeeRole, UpdateUserRolesResponse } from '../../core/
           <legend class="sr-only">Role của user</legend>
           @for (role of roles(); track role.id) {
             <label class="flex items-center gap-2 text-sm">
-              <input type="checkbox" [checked]="selectedIds().includes(role.id)"
+              <input type="radio" name="assigned-role" [checked]="selectedIds().includes(role.id)"
                 (change)="toggleRole(role.id, $any($event.target).checked)" />
               {{ role.name }}
             </label>
@@ -64,7 +64,9 @@ export class UpdateUserRolesComponent implements OnInit {
     this.adminService.getCreateUserOptions().pipe(finalize(() => this.loading.set(false))).subscribe({
       next: response => {
         this.roles.set(response.roles);
-        this.selectedIds.set(this.employee().roles.map(role => role.id).filter(id => response.roles.some(role => role.id === id)));
+        const current = this.employee().roles.map(role => role.id).filter(id => response.roles.some(role => role.id === id));
+        const admin = response.roles.find(role => role.code === 'ADMIN' && current.includes(role.id));
+        this.selectedIds.set(admin ? [admin.id] : current.length === 1 ? current : []);
         this.loaded.set(true);
       },
       error: error => this.error.set(error.error?.message || 'Không tải được danh sách role.')
@@ -72,13 +74,14 @@ export class UpdateUserRolesComponent implements OnInit {
   }
 
   toggleRole(id: number, checked: boolean): void {
-    this.selectedIds.update(ids => checked ? [...new Set([...ids, id])] : ids.filter(value => value !== id));
+    if (this.saving()) return;
+    this.selectedIds.update(ids => checked ? [id] : ids.filter(value => value !== id));
   }
 
   save(): void {
     if (this.saving() || !this.loaded()) return;
-    if (!this.selectedIds().length) {
-      this.error.set('Vui lòng chọn ít nhất một role.');
+    if (this.selectedIds().length !== 1) {
+      this.error.set('Vui lòng chọn đúng một role.');
       return;
     }
     this.error.set('');

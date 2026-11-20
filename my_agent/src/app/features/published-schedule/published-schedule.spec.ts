@@ -7,6 +7,7 @@ import { PublishedSchedule } from './published-schedule';
 import { PublishedScheduleService } from '../../core/services/published-schedule.service';
 import { PublishedScheduleResponse, PublishedScheduleRow } from '../../core/models/published-schedule.models';
 import { environment } from '../../../environments/environment';
+import { AuthService } from '../../core/services/auth.service';
 
 const row: PublishedScheduleRow = {
   id: '1', cycleKey: '2', cycleLabel: 'Kỳ 11', team: 'Team A', employeeName: 'Nguyễn An', employeeId: 'NV001',
@@ -17,7 +18,10 @@ async function setup() {
   const service = { getPublishedSchedule: vi.fn(() => {
     const request = new Subject<PublishedScheduleResponse>(); requests.push(request); return request;
   }) };
-  TestBed.configureTestingModule({ imports: [PublishedSchedule], providers: [{ provide: PublishedScheduleService, useValue: service }] });
+  TestBed.configureTestingModule({ imports: [PublishedSchedule], providers: [
+    { provide: PublishedScheduleService, useValue: service },
+    { provide: AuthService, useValue: { currentUser: () => ({ roles: [{ roleCode: 'EMPLOYEE' }] }) } }
+  ] });
   const fixture = TestBed.createComponent(PublishedSchedule);
   fixture.detectChanges();
   const respond = async (rows: PublishedScheduleRow[]) => {
@@ -38,6 +42,16 @@ describe('Published schedule API and filters', () => {
     expect(request.request.method).toBe('GET');
     request.flush({ ok: true, rows: [] });
     expect(received).toHaveBeenCalledWith({ ok: true, rows: [] }); http.verify();
+  });
+
+  it('gets personal published data without trusting employee id, and posts the confirmed publication batch', () => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    const http = TestBed.inject(HttpTestingController), service = TestBed.inject(PublishedScheduleService);
+    service.getMyPublishedSchedule().subscribe(); const mine = http.expectOne(`${environment.apiUrl}/registration/published?mine=true`);
+    expect(mine.request.method).toBe('GET'); mine.flush({ ok: true, rows: [] });
+    service.publish(2, [7, 8]).subscribe(); const publish = http.expectOne(`${environment.apiUrl}/registration/published`);
+    expect(publish.request.method).toBe('POST'); expect(publish.request.body).toEqual({ cycleId: 2, entryIds: [7, 8] });
+    publish.flush({ ok: true }); http.verify();
   });
 
   it('renders API rows and preserves all dropdown selections after clicking refresh', async () => {

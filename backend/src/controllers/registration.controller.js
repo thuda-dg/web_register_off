@@ -12,7 +12,8 @@ async function requireHc(req, res, next) {
 
 async function published(req, res, next) {
   try {
-    return res.status(200).json(await getPublishedSchedule());
+    const empId = req.query.mine === 'true' ? getAuthenticatedEmpId(req) : undefined;
+    return res.status(200).json(await getPublishedSchedule({ empId }));
   } catch (error) { next(error); }
 }
 

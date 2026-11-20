@@ -86,11 +86,21 @@ describe('OFF approval screen', () => {
 
   it('refreshes stale decisions on 409 and prevents acting on already handled rows', () => {
     const { component, service, decisions, respond } = setup();
-    component.open({ ...row, status: 'APPROVED' }, 'reject'); expect(component.selected()).toBeNull();
+    component.open({ ...row, status: 'PUBLISHED' }, 'reject'); expect(component.selected()).toBeNull();
     component.open(row, 'approve'); component.confirm();
     decisions[0].error({ status: 409, error: { message: 'Đơn đã được xử lý' } });
     expect(component.selected()).toBeNull(); expect(service.list).toHaveBeenCalledTimes(2);
     respond([{ ...row, status: 'APPROVED' }]); expect(component.pendingCount()).toBe(0);
+  });
+
+  it('offers reject for approved rows until published and requires a rejection reason', () => {
+    const { component, fixture, respond, service } = setup();
+    component.load(); respond([{ ...row, status: 'APPROVED' }]); component.status.set('APPROVED'); fixture.detectChanges();
+    const button = [...fixture.nativeElement.querySelectorAll('button')].find((b: any) => b.textContent.trim() === 'Từ chối') as HTMLButtonElement;
+    expect(button).toBeTruthy(); button.click(); fixture.detectChanges();
+    component.confirm(); expect(service.decide).not.toHaveBeenCalled();
+    component.note = 'Thay đổi kế hoạch'; component.confirm();
+    expect(service.decide).toHaveBeenCalledWith(7, 'reject', 'Thay đổi kế hoạch');
   });
 
   it('clears stale rows when backend rejects revoked permissions and unsubscribes on exit', () => {

@@ -60,7 +60,7 @@ getStatusLabel(
   switch(status) {
 
     case 'PENDING_TL':
-      return 'Chờ TL duyệt';
+      return 'Chờ xử lý';
 
 
     case 'APPROVED':

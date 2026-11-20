@@ -58,7 +58,8 @@ export class OffApprovals implements OnInit {
   }
 
   open(row: OffApprovalRow, decision: 'approve' | 'reject'): void {
-    if (this.loading() || this.saving() || row.status !== 'PENDING_TL') return;
+    if (this.loading() || this.saving() || this.selected() ||
+      !(row.status === 'PENDING_TL' || (row.status === 'APPROVED' && decision === 'reject'))) return;
     this.actionError.set(''); this.error.set(''); this.success.set('');
     this.note = ''; this.decision.set(decision); this.selected.set({ ...row });
   }

@@ -57,7 +57,7 @@ import { CreateUserOptions, EmployeeItem } from '../../core/models/admin.model';
               <div class="mt-2 flex flex-wrap gap-4">
                 @for (role of options()!.roles; track role.id) {
                   <label class="flex items-center gap-2 text-sm">
-                    <input type="checkbox" [checked]="form.controls.roleIds.value.includes(role.id)"
+                    <input type="radio" name="new-user-role" [checked]="form.controls.roleIds.value.includes(role.id)"
                       (change)="toggleRole(role.id, $any($event.target).checked)" />
                     {{ role.name }}
                   </label>
@@ -68,7 +68,7 @@ import { CreateUserOptions, EmployeeItem } from '../../core/models/admin.model';
             </fieldset>
           </fieldset>
           @if (submitted() && form.invalid) {
-            <p role="alert" class="mt-4 text-sm text-red-700">Vui lòng điền đủ thông tin bắt buộc, email hợp lệ, mật khẩu từ 8 ký tự và chọn ít nhất một role.</p>
+            <p role="alert" class="mt-4 text-sm text-red-700">Vui lòng điền đủ thông tin bắt buộc, email hợp lệ, mật khẩu từ 8 ký tự và chọn đúng một role.</p>
           }
           <div class="mt-6 flex gap-3">
             <button type="submit" [disabled]="saving() || !options()!.roles.length"
@@ -120,7 +120,8 @@ export class CreateUserComponent implements OnInit {
 
   toggleRole(id: number, checked: boolean): void {
     const control = this.form.controls.roleIds;
-    control.setValue(checked ? [...new Set([...control.value, id])] : control.value.filter(value => value !== id));
+    if (this.saving()) return;
+    control.setValue(checked ? [id] : control.value.filter(value => value !== id));
   }
 
   submit(): void {

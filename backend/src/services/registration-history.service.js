@@ -95,6 +95,7 @@ async function getMyRegistrationEntries({
               action.action_type
             )
         );
+      const hideApproval = entry.leaveType.leave_type_code === 'OFF' && entry.current_status !== 'PUBLISHED';
       rows.push({
         cycleKey:
           String(submission.cycle_id),
@@ -107,13 +108,12 @@ async function getMyRegistrationEntries({
         typeName:
           entry.leaveType.leave_type_name,
         tlStatus:
-          entry.current_status,
+          hideApproval && entry.current_status === 'APPROVED' ? 'PENDING_TL' : entry.current_status,
         submittedAt:
           submittedAction?.created_at ||
           submission.submitted_at,
         approvedAt:
-          approvedAction?.created_at ||
-          null,
+          hideApproval ? null : approvedAction?.created_at || null,
         submissionId:
           Number(submission.submission_id),
         entryId:

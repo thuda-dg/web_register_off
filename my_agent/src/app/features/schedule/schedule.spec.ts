@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { Subject } from 'rxjs';
+import { of, Subject } from 'rxjs';
+import { PublishedScheduleService } from '../../core/services/published-schedule.service';
 import { describe, it, expect, vi } from 'vitest';
 import { Schedule } from './schedule';
 import { RegistrationService } from '../../core/services/registration.service';
@@ -15,7 +16,8 @@ function setup() {
   };
   TestBed.configureTestingModule({ providers: [
     { provide: RegistrationService, useValue: service },
-    { provide: AuthService, useValue: {} }
+    { provide: AuthService, useValue: {} },
+    { provide: PublishedScheduleService, useValue: { getMyPublishedSchedule: () => of({ ok: true, rows: [] }) } }
   ] });
   const fixture = TestBed.createComponent(Schedule);
   const component = fixture.componentInstance;

@@ -26,13 +26,13 @@ Tài liệu chi tiết: [Backend](backend/README.md), [My Agent](my_agent/README
 | RequireHC `/require-hc` | API thật `GET /api/registration/require-hc`; capacity và số OFF đã đăng ký theo kỳ/ngày/task |
 | Danh sách nhân viên ở admin | API thật, lấy nhân viên đang active, team hiện tại và role theo thời hạn |
 | Tạo nhân viên kèm tài khoản | API thật, yêu cầu ADMIN; chưa tự tạo task assignment hay số dư phép/OFF |
-| Cập nhật nhiều role cho user | API thật, yêu cầu ADMIN; chọn ngay dưới từng dòng trong danh sách |
+| Cập nhật một role cho user | API thật, yêu cầu ADMIN; chọn ngay dưới từng dòng trong danh sách |
 | Cập nhật team cho nhân viên | API thật, yêu cầu ADMIN; dropdown chọn một team, lưu lịch sử chuyển team |
 | Cập nhật task cho nhân viên | API thật, yêu cầu ADMIN; dropdown chọn một task, lưu lịch sử chuyển task |
 | Import Excel RequireHC | ADMIN upload .xlsx/.xls, chọn kỳ, kiểm tra trước và nhập/cập nhật hạn mức theo ngày/task |
 | Tạo kỳ đăng ký OFF | ADMIN nhập ngày bắt đầu/kết thúc; tự đặt lịch 17–23 tháng trước cho tháng của ngày kết thúc |
 | Duyệt OFF | API thật, chỉ TEAM_LEAD; nhân viên cùng team hiện tại, không tự duyệt |
-| Công bố lịch | Chưa có API thao tác công bố; trang Published chỉ đọc các entry PUBLISHED |
+| Công bố OFF | TEAM_LEAD công bố các đơn APPROVED theo kỳ tại tab Published; Schedule/Published hiển thị lịch đã công bố |
 
 ## Chạy local
 
@@ -127,7 +127,7 @@ Hai frontend cấu hình `environment.apiUrl` là `http://localhost:3000/api`. R
 
 ## Quyền và phiên đăng nhập
 
-Các role trong master seed là `EMPLOYEE`, `TEAM_LEAD`, `WFM`, `ADMIN`. Một tài khoản có thể có nhiều role.
+Các role trong master seed là `EMPLOYEE`, `TEAM_LEAD`, `WFM`, `ADMIN`. Luồng tạo/gán role chỉ nhận đúng một role cho mỗi tài khoản. DTO vẫn giữ mảng roles để tương thích; không tự đổi các grant cũ trong DB.
 
 - Tạo user, lấy tùy chọn team/role và cập nhật role yêu cầu ADMIN hiện tại từ database, tài khoản ACTIVE và nhân viên active.
 - Danh sách nhân viên `/api/admin/getall` hiện chỉ yêu cầu đăng nhập, chưa có kiểm tra ADMIN. `AuthGuard` ở trang admin cũng chỉ kiểm tra phiên.

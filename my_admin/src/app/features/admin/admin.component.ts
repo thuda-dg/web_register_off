@@ -57,7 +57,7 @@ import { RouterLink } from '@angular/router';
       class="border-b border-slate-200 bg-white shadow-sm"
     >
       <div
-        class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4"
+        class="flex w-full items-center justify-between gap-4 px-4 py-4 sm:px-6"
       >
 
         <div>
@@ -98,7 +98,7 @@ import { RouterLink } from '@angular/router';
 
     <!-- CONTENT -->
     <main
-      class="mx-auto max-w-7xl px-6 py-8"
+      class="w-full px-4 py-8 sm:px-6"
     >
 
       <!-- TITLE -->
@@ -153,13 +153,14 @@ import { RouterLink } from '@angular/router';
       >
 
         <div
-          class="overflow-x-auto"
+          class="w-full overflow-x-auto"
         >
 
           <table
-            class="min-w-full divide-y divide-slate-200"
+            class="w-full min-w-[1200px] table-fixed divide-y divide-slate-200 [overflow-wrap:anywhere]"
           >
 
+            <colgroup><col class="w-[4%]" /><col class="w-[13%]" /><col class="w-[10%]" /><col class="w-[19%]" /><col class="w-[10%]" /><col class="w-[8%]" /><col class="w-[10%]" /><col class="w-[26%]" /></colgroup>
             <thead
               class="bg-slate-50"
             >
@@ -167,7 +168,7 @@ import { RouterLink } from '@angular/router';
               <tr>
 
                 <th
-                  class="px-6 py-3 text-left
+                  class="px-3 py-3 text-left
                          text-xs font-semibold
                          uppercase tracking-wider
                          text-slate-500"
@@ -176,7 +177,7 @@ import { RouterLink } from '@angular/router';
                 </th>
 
                 <th
-                  class="px-6 py-3 text-left
+                  class="px-3 py-3 text-left
                          text-xs font-semibold
                          uppercase tracking-wider
                          text-slate-500"
@@ -184,8 +185,11 @@ import { RouterLink } from '@angular/router';
                   Họ tên
                 </th>
 
+                <th class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Mã nhân viên</th>
+                <th class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Email</th>
+
                 <th
-                  class="px-6 py-3 text-left
+                  class="px-3 py-3 text-left
                          text-xs font-semibold
                          uppercase tracking-wider
                          text-slate-500"
@@ -193,10 +197,10 @@ import { RouterLink } from '@angular/router';
                   Team
                 </th>
 
-                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Task</th>
+                <th class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Task</th>
 
                 <th
-                  class="px-6 py-3 text-left
+                  class="px-3 py-3 text-left
                          text-xs font-semibold
                          uppercase tracking-wider
                          text-slate-500"
@@ -205,7 +209,7 @@ import { RouterLink } from '@angular/router';
                 </th>
 
                 <th
-                  class="px-6 py-3 text-right
+                  class="px-3 py-3 text-right
                          text-xs font-semibold
                          uppercase tracking-wider
                          text-slate-500"
@@ -234,7 +238,7 @@ import { RouterLink } from '@angular/router';
 
                   <!-- STT -->
                   <td
-                    class="whitespace-nowrap px-6 py-4
+                    class="px-3 py-4
                            text-sm text-slate-500"
                   >
                     {{ index + 1 }}
@@ -243,7 +247,7 @@ import { RouterLink } from '@angular/router';
 
                   <!-- FULL NAME -->
                   <td
-                    class="whitespace-nowrap px-6 py-4"
+                    class="px-3 py-4"
                   >
                     <div
                       class="font-semibold text-slate-800"
@@ -253,9 +257,12 @@ import { RouterLink } from '@angular/router';
                   </td>
 
 
+                  <td class="px-3 py-4 text-sm text-slate-700">{{ employee.employeeCode || '—' }}</td>
+                  <td class="break-words px-3 py-4 text-sm text-slate-600">{{ employee.email || '—' }}</td>
+
                   <!-- TEAM -->
                   <td
-                    class="whitespace-nowrap px-6 py-4"
+                    class="px-3 py-4"
                   >
 
                     @if (employee.teamName) {
@@ -282,11 +289,11 @@ import { RouterLink } from '@angular/router';
                   </td>
 
 
-                  <td class="whitespace-nowrap px-6 py-4 text-sm">{{ employee.taskName || 'Chưa có task' }}</td>
+                  <td class="px-3 py-4 text-sm">{{ employee.taskName || 'Chưa có task' }}</td>
 
                   <!-- ROLES -->
                   <td
-                    class="px-6 py-4"
+                    class="px-3 py-4"
                   >
 
                     @if (employee.roles.length > 0) {
@@ -328,10 +335,11 @@ import { RouterLink } from '@angular/router';
 
                   <!-- ACTION -->
                   <td
-                    class="whitespace-nowrap px-6 py-4 text-right"
+                    class="px-3 py-4 text-right"
                   >
 
                     @if (canCreateUser()) {
+                    <div class="flex flex-wrap justify-end gap-2">
                     <button type="button" (click)="openTaskEditor(employee)"
                       [disabled]="roleSaving() || teamSaving() || taskSaving()"
                       [attr.aria-expanded]="editingTaskEmployeeId() === employee.id"
@@ -359,6 +367,7 @@ import { RouterLink } from '@angular/router';
                     >
                       Cập nhật role
                     </button>
+                    </div>
                     }
 
                   </td>
@@ -367,7 +376,7 @@ import { RouterLink } from '@angular/router';
 
                 @if (editingEmployeeId() === employee.id) {
                   <tr>
-                    <td colspan="6" class="px-6 pb-5">
+                    <td colspan="8" class="px-3 pb-5">
                       <app-update-user-roles [employee]="employee"
                         (saved)="onRolesUpdated($event)"
                         (cancelled)="editingEmployeeId.set(null)"
@@ -377,7 +386,7 @@ import { RouterLink } from '@angular/router';
                 }
                 @if (editingTeamEmployeeId() === employee.id) {
                   <tr>
-                    <td colspan="6" class="px-6 pb-5">
+                    <td colspan="8" class="px-3 pb-5">
                       <app-update-user-team [employee]="employee"
                         (saved)="onTeamUpdated($event)"
                         (cancelled)="editingTeamEmployeeId.set(null)"
@@ -387,7 +396,7 @@ import { RouterLink } from '@angular/router';
                 }
                 @if (editingTaskEmployeeId() === employee.id) {
                   <tr>
-                    <td colspan="6" class="px-6 pb-5">
+                    <td colspan="8" class="px-3 pb-5">
                       <app-update-user-task [employee]="employee"
                         (saved)="onTaskUpdated($event)"
                         (cancelled)="editingTaskEmployeeId.set(null)"
@@ -402,8 +411,8 @@ import { RouterLink } from '@angular/router';
                 <tr>
 
                   <td
-                    colspan="6"
-                    class="px-6 py-10 text-center
+                    colspan="8"
+                    class="px-3 py-10 text-center
                            text-sm text-slate-500"
                   >
                     Không có nhân viên nào.

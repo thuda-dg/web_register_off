@@ -1,6 +1,9 @@
-const { getOffApprovals, decideOff } = require('../services/off-approval.service');
+const { getOffApprovals, decideOff, publishOff } = require('../services/off-approval.service');
 
 module.exports = {
+  publish: async (req, res, next) => {
+    try { res.json(await publishOff(req.user.sub, req.body || {})); } catch (error) { next(error); }
+  },
   list: async (req, res, next) => {
     try { res.json(await getOffApprovals(req.user.sub)); } catch (error) { next(error); }
   },

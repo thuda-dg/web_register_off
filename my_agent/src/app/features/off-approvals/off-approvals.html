@@ -4,6 +4,7 @@
       <h2 class="text-lg font-bold text-emerald-700">Duyệt đăng ký OFF</h2>
       <p class="mt-1 text-sm text-slate-500">Nhân viên cùng team hiện tại {{ teamName() }}. Không bao gồm đơn của chính bạn.</p>
       <p class="mt-1 text-sm text-slate-500">Duyệt chuyển sang “Đã duyệt”, chưa công bố lên lịch chung.</p>
+      <p class="mt-1 text-sm text-slate-500">Có thể từ chối đơn đã duyệt trước khi công bố. Công bố theo kỳ tại tab Published.</p>
     </div>
     <button type="button" (click)="load()" [disabled]="loading() || saving() || !!selected()"
       class="rounded-lg bg-slate-200 px-4 py-2 text-sm font-semibold disabled:opacity-50">{{ loading() ? 'Đang tải...' : 'Làm mới' }}</button>
@@ -49,6 +50,8 @@
               <td class="whitespace-nowrap p-3">
                 @if (row.status === 'PENDING_TL') {
                   <button type="button" (click)="open(row, 'approve')" [disabled]="saving()" class="mr-2 rounded-lg bg-emerald-600 px-3 py-2 font-semibold text-white disabled:opacity-50">Duyệt</button>
+                  <button type="button" (click)="open(row, 'reject')" [disabled]="saving()" class="rounded-lg bg-red-600 px-3 py-2 font-semibold text-white disabled:opacity-50">Từ chối</button>
+                } @else if (row.status === 'APPROVED') {
                   <button type="button" (click)="open(row, 'reject')" [disabled]="saving()" class="rounded-lg bg-red-600 px-3 py-2 font-semibold text-white disabled:opacity-50">Từ chối</button>
                 } @else { <span class="text-slate-400">Đã xử lý</span> }
               </td>

@@ -11,9 +11,23 @@ const { authorizeRoles } = require('./middleware/auth.middleware');
 
 const payload = {
   employeeCode: ' NV001 ', fullName: ' Nguyễn An ', email: ' AN@example.com ',
-  password: 'Test-password-123', teamId: 2, roleIds: [1, 1]
+  password: 'Test-password-123', teamId: 2, roleIds: [1]
 };
 const originals = [];
+test('creation and role assignment reject multiple roles before accessing DB', async () => {
+  stub(models.sequelize, 'transaction', () => assert.fail('invalid input must not access DB'));
+  for (const roleIds of [[1, 2], [1, 1]]) {
+    await assert.rejects(createUser({ ...payload, roleIds }), { statusCode: 400 });
+    await assert.rejects(updateUserRoles(10, { roleIds }), { statusCode: 400 });
+  }
+});
+
+test('role update preserves future grants by rejecting before any role write', async () => {
+  const state = roleDatabase();
+  stub(models.UserRole, 'findAll', async () => [{ role_id: 1, start_date: '9999-01-01' }]);
+  await assert.rejects(updateUserRoles(10, { roleIds: [2] }), { statusCode: 409, code: 'FUTURE_ROLE_ASSIGNMENT' });
+  assert.equal(state.rolledBack, true); assert.deepEqual(state.created, []);
+});
 function stub(object, key, fn) {
   originals.push([object, key, object[key]]);
   object[key] = fn;
@@ -161,7 +175,7 @@ function roleDatabase() {
 
 test('updates roles atomically, expires historical grants and removes same-day grants', async () => {
   const state = roleDatabase();
-  const result = await updateUserRoles('10', { roleIds: [2, 2] });
+  const result = await updateUserRoles('10', { roleIds: [2] });
   assert.equal(state.committed, true);
   assert.equal(result.employeeId, 10);
   assert.deepEqual(result.roles, [{ id: 2, name: 'Manager' }]);

@@ -9,6 +9,7 @@ router.use(authMiddleware);
 router.get('/approvals', approvals.list);
 router.patch('/approvals/:entryId', approvals.decide);
 router.get('/published', published);
+router.post('/published', approvals.publish);
 router.get('/require-hc', requireHc);
 
 // Lấy dữ liệu ban đầu cho màn hình đăng ký
