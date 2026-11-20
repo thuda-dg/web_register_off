@@ -20,9 +20,11 @@ import {
 import { RequireHcImport } from './features/require-hc-import/require-hc-import';
 import { adminGuard } from './core/guards/admin.guard';
 import { RegistrationCycles } from './features/registration-cycles/registration-cycles';
+import { OffBalanceImport } from './features/off-balance-import/off-balance-import';
 
 
 export const routes: Routes = [
+  { path: 'admin/off-balances/import', component: OffBalanceImport, canActivate: [adminGuard] },
   { path: 'admin/registration-cycles', component: RegistrationCycles, canActivate: [adminGuard] },
   { path: 'admin/require-hc/import', component: RequireHcImport, canActivate: [adminGuard] },
 

@@ -9,6 +9,7 @@ import { PublishedSchedule } from './features/published-schedule/published-sched
 import { RequireHc } from './features/require-hc/require-hc';
 import { OffApprovals } from './features/off-approvals/off-approvals';
 import { teamLeadGuard } from './core/guards/team-lead.guard';
+import { screenAccessGuard } from './core/guards/screen-access.guard';
 
 
 export const routes: Routes = [
@@ -31,7 +32,7 @@ export const routes: Routes = [
 
       {
         path: 'schedule',
-        component: Schedule
+        component: Schedule, canActivate: [screenAccessGuard('schedule')]
       },
 
       {
@@ -39,12 +40,12 @@ export const routes: Routes = [
       },
       {
         path: 'history',
-        component: History
+        component: History, canActivate: [screenAccessGuard('history')]
       },
 
       {
         path: 'published',
-        component: PublishedSchedule
+        component: PublishedSchedule, canActivate: [screenAccessGuard('published')]
       },
 
       {

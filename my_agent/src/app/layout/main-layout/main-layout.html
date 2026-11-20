@@ -2,8 +2,9 @@
 
   <div class="mx-auto max-w-6xl">
 
-    <header class="mb-5 rounded-xl bg-emerald-700 px-6 py-4 text-white shadow-sm">
+    <header class="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-xl bg-emerald-700 px-6 py-4 text-white shadow-sm">
 
+      <div>
       <h1 class="text-lg font-bold">
         Đăng ký lịch nghỉ – WFM Off Schedule
       </h1>
@@ -11,6 +12,19 @@
       <p class="mt-1 text-xs text-white/85">
         Hệ thống quản lý lịch nghỉ WFM
       </p>
+      @if (auth.currentUser(); as user) {
+        <dl class="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+          <div><dt class="inline text-white/75">Họ tên: </dt><dd class="inline font-semibold">{{ user.empName || '—' }}</dd></div>
+          <div><dt class="inline text-white/75">Mã nhân viên: </dt><dd class="inline font-semibold">{{ user.empCode || '—' }}</dd></div>
+          <div><dt class="inline text-white/75">Team: </dt><dd class="inline font-semibold">{{ user.team?.teamName || 'Chưa có team hiện tại' }}</dd></div>
+        </dl>
+      }
+      </div>
+
+      <button type="button" (click)="logout()" [disabled]="loggingOut()"
+        class="shrink-0 rounded-lg border border-white/40 bg-white px-4 py-2 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60">
+        {{ loggingOut() ? 'Đang đăng xuất...' : 'Đăng xuất' }}
+      </button>
 
     </header>
 
@@ -20,25 +34,31 @@
 
       <div class="flex flex-wrap gap-5 text-sm font-semibold">
 
+        @if (canView('schedule')) {
         <a routerLink="/schedule"
            routerLinkActive="text-emerald-700">
           Đăng ký nghỉ
         </a>
+        }
 
 
         @if (isTeamLead) {
           <a routerLink="/approvals" routerLinkActive="text-emerald-700">Duyệt OFF</a>
         }
+        @if (canView('history')) {
         <a routerLink="/history"
            routerLinkActive="text-emerald-700">
           Lịch sử đăng ký
         </a>
+        }
 
 
+        @if (canView('published')) {
         <a routerLink="/published"
            routerLinkActive="text-emerald-700">
           Lịch đã duyệt
         </a>
+        }
 
 
         <a routerLink="/require-hc"

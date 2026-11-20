@@ -6,6 +6,8 @@ const {
   Employee,
   UserAccount,
   Role,
+  Team,
+  EmpTeamHistory,
   RefreshToken
 } = require('../models');
 
@@ -42,7 +44,21 @@ async function buildUserProfile(
   employee,
   roles = []
 ) {
+  const parts = new Intl.DateTimeFormat('en', {
+    timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).formatToParts(new Date());
+  const part = key => parts.find(item => item.type === key).value;
+  const today = `${part('year')}-${part('month')}-${part('day')}`;
+  const assignment = await EmpTeamHistory.findOne({
+    where: { emp_id: employee.emp_id, start_date: { [Op.lte]: today },
+      [Op.or]: [{ end_date: null }, { end_date: { [Op.gte]: today } }] },
+    include: [{ model: Team, as: 'team', required: true, where: { is_active: true },
+      attributes: ['team_id', 'team_code', 'team_name'] }],
+    order: [['start_date', 'DESC'], ['emp_team_history_id', 'DESC']]
+  });
   return {
+    team: assignment?.team ? { teamId: Number(assignment.team.team_id), teamCode: assignment.team.team_code,
+      teamName: assignment.team.team_name } : null,
     userAccountId:
       Number(
         userAccount.user_account_id
@@ -536,6 +552,10 @@ async function loginUser(
 
   const roles =
     await getActiveRoles(userAccount);
+  if (requestInfo.requireAdmin && !roles.some(role => role.role_code === 'ADMIN')) {
+    throw toHttpError('Chỉ tài khoản có role ADMIN được đăng nhập ứng dụng quản trị.', 403, 'ADMIN_ACCESS_REQUIRED');
+  }
+
 
 
   const profile =
@@ -777,6 +797,10 @@ async function refreshSession(
 
   const roles =
     await getActiveRoles(userAccount);
+  if (requestInfo.requireAdmin && !roles.some(role => role.role_code === 'ADMIN')) {
+    throw toHttpError('Chỉ tài khoản có role ADMIN được đăng nhập ứng dụng quản trị.', 403, 'ADMIN_ACCESS_REQUIRED');
+  }
+
 
 
   const profile =

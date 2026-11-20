@@ -6,7 +6,8 @@ import {
 } from '@angular/core';
 
 import {
-  HttpClient
+  HttpClient,
+  HttpErrorResponse
 } from '@angular/common/http';
 
 import {
@@ -89,7 +90,7 @@ export class AuthService {
 
     return this.http
       .post<AuthApiResponse>(
-        `${this.apiUrl}/login`,
+        `${this.apiUrl}/admin/login`,
         payload,
         {
           /*
@@ -162,7 +163,7 @@ export class AuthService {
 
           this.http
             .post<AuthApiResponse>(
-              `${this.apiUrl}/refresh-token`,
+              `${this.apiUrl}/admin/refresh-token`,
 
               /*
                * Không gửi refreshToken
@@ -270,6 +271,10 @@ export class AuthService {
   private persistAuth(
     response: AuthApiResponse
   ): void {
+    if (!response.ok || !response.accessToken || !response.user?.roles?.some(role => role.roleCode === 'ADMIN')) {
+      this.clearAuth();
+      throw new HttpErrorResponse({ status: 403, error: { message: 'Chỉ tài khoản có role ADMIN được đăng nhập ứng dụng quản trị.' } });
+    }
 
     /*
      * Backend chỉ trả:

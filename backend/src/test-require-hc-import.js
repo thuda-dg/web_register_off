@@ -4,7 +4,8 @@ const XLSX = require('xlsx');
 const { Readable } = require('node:stream');
 const { excelUpload } = require('./middleware/excel-upload.middleware');
 const { sequelize, RegistrationCycle, Task, RequireHC } = require('./models');
-const { parseExcel, importRequireHc, MAX_BYTES } = require('./services/require-hc-import.service');
+const { parseExcel, importRequireHc, getImportCycles, MAX_BYTES } = require('./services/require-hc-import.service');
+const { Op } = require('sequelize');
 const originals = [];
 function stub(object, key, fn) { originals.push([object, key, object[key]]); object[key] = fn; }
 afterEach(() => { for (const [object, key, value] of originals.splice(0).reverse()) object[key] = value; });
@@ -14,6 +15,19 @@ function excel(data, type = 'xlsx', edit = () => {}) {
   return { originalname: `data.${type}`, buffer: XLSX.write(book, { type: 'buffer', bookType: type === 'xls' ? 'biff8' : 'xlsx' }) };
 }
 const headers = ['working_date', 'task', 'max_off'];
+for (const [now, expected] of [['2026-11-19T16:59:59.999Z', '2026-11-19'], ['2026-11-19T17:00:00.000Z', '2026-11-20']]) {
+  test(`both import dropdowns filter cycles from Vietnam today ${expected} at ${now}`, async t => {
+    t.mock.timers.enable({ apis: ['Date'], now: new Date(now).getTime() });
+    stub(RegistrationCycle, 'findAll', async options => {
+      assert.equal(options.where.start_date[Op.gte], expected);
+      assert.deepEqual(options.order, [['start_date', 'DESC']]);
+      return [{ cycle_id: 2, cycle_name: 'Kỳ thử', start_date: expected, end_date: expected, status: 'OPEN' }];
+    });
+    const result = await getImportCycles();
+    assert.equal(result.items[0].startDate, expected);
+    assert.equal(result.items[0].id, 2);
+  });
+}
 const file = () => excel([headers, ['2026-11-17', 'MASS', 2], ['18/11/2026', 'KEY', 0]]);
 
 async function multipart(filename) {

@@ -49,16 +49,16 @@ Prefix chung: `/api`. Endpoint cần phiên dùng `Authorization: Bearer <access
 | POST | `/auth/forgot-password` | Tạo token đặt lại; gửi email chưa được triển khai |
 | POST | `/auth/reset-password` | Token đặt lại + mật khẩu mới |
 | GET | `/auth/me` | Đăng nhập; hồ sơ hiện tại |
-| GET | `/registration/bootstrap` | Đăng nhập; nhân viên, team/task, kỳ, loại nghỉ, lý do, số dư, capacity |
-| POST | `/registration/validate` | Đăng nhập; kiểm tra `cycleId`, `entries` |
-| POST | `/registration/submit` | Đăng nhập; validate lại rồi lưu trong transaction |
+| GET | `/registration/bootstrap` | EMPLOYEE hiện tại từ DB; nhân viên, team/task, kỳ, loại nghỉ, lý do, số dư, capacity |
+| POST | `/registration/validate` | EMPLOYEE hiện tại từ DB; kiểm tra `cycleId`, `entries` |
+| POST | `/registration/submit` | EMPLOYEE hiện tại từ DB; validate lại rồi lưu trong transaction |
 | GET | `/registration/history` | Đăng nhập; lịch sử của `empId` trong JWT |
 | GET | `/registration/approvals` | TEAM_LEAD hiện tại từ DB; OFF của nhân viên cùng team, loại trừ bản thân |
 | PATCH | `/registration/approvals/:entryId` | TEAM_LEAD; duyệt PENDING_TL, từ chối PENDING_TL/APPROVED chưa công bố |
 | GET | `/registration/published` | Đăng nhập; lịch PUBLISHED đang active của tất cả các team |
 | POST | `/registration/published` | TEAM_LEAD từ DB; công bố các OFF đã duyệt theo kỳ/team hiện tại |
 | GET | `/registration/require-hc` | Đăng nhập; capacity và số OFF đang chiếm slot theo kỳ/ngày/task |
-| GET | `/admin/getall` | Đăng nhập; hiện chưa yêu cầu ADMIN |
+| GET | `/admin/getall` | ADMIN hiện tại từ DB |
 | GET | `/admin/registration-cycles` | ADMIN từ DB; danh sách kỳ và lịch mở/đóng |
 | POST | `/admin/registration-cycles` | ADMIN từ DB; tạo kỳ từ startDate/endDate |
 | GET | `/admin/require-hc/cycles` | ADMIN từ DB; danh sách kỳ cho trang import |
@@ -183,7 +183,7 @@ Test tự động dùng model stub, không ghi DB: `node --test src/test-off-pol
 - OFF: ngày trong kỳ, không vượt số dư được cấp và tối đa 4 ngày/kỳ; tối đa 2 ngày/tuần thứ Hai–Chủ nhật, không 4 Chủ nhật liên tiếp, các ngày OFF liền kề trong cùng kỳ cách nhau tối đa 10 ngày, capacity RequireHC theo task/ngày.
 - AL: `A` và `A/2` kiểm tra danh mục, ngày trong kỳ, lý do hợp lệ và số dư. Định lượng trừ phép lấy từ model/danh mục; không hardcode một ngày cho mọi loại nghỉ.
 - Các trạng thái đang tính vào số đã dùng: `PENDING_TL`, `APPROVED`, `PUBLISHED`, `UNPUBLISHED` trong `leave-balance.service.js`.
-- ADMIN bypass kiểm tra cửa sổ/kỳ mở trong validator hiện tại; các rule khác vẫn được gọi. Role của luồng này lấy từ JWT, khác kiểm tra ADMIN trực tiếp DB ở API quản trị.
+- API bootstrap/validate/submit yêu cầu EMPLOYEE hiện tại từ DB; middleware chuyển quyền đăng ký thành EMPLOYEE nên ADMIN không bypass lịch qua các API này.
 - Submit validate lại, chuẩn bị snapshot team/task, tạo submission, entry và action trong một transaction. Entry mới mang trạng thái `PENDING_TL`.
 - Rule “OFF trước, loại khác sau” có service riêng nhưng chưa được gọi bởi validator chính.
 
@@ -191,7 +191,7 @@ Test tự động dùng model stub, không ghi DB: `node --test src/test-off-pol
 
 Password được băm bcrypt. Login/refresh trả access token; refresh token raw chỉ ghi cookie HttpOnly và database giữ hash. Production cookie dùng `secure: true`, `sameSite: none`; local dùng `lax`, cookie path `/api/auth`. Reset password thu hồi refresh token của tài khoản.
 
-`getActiveRoles` lọc role active, start_date và end_date. `requireAdmin` kiểm tra account ACTIVE, employee active và role hiện tại từ DB cho options/create/update-role. Không suy rộng bảo vệ này sang endpoint danh sách hoặc toàn bộ ứng dụng.
+`getActiveRoles` lọc role active, start_date và end_date. `requireAdmin` kiểm tra account ACTIVE, employee active và role hiện tại từ DB cho options/create/update-role. Endpoint danh sách cũng kiểm tra ADMIN; không suy rộng quy tắc này sang API công khai của my_agent.
 
 Forgot password trả reset token ở môi trường không phải production để phát triển; production chưa gửi mail. Log debug auth hiện còn chứa dữ liệu phiên. Có khác biệt cấu hình/model giữa code cũ và runtime; mọi thay đổi schema cần đối chiếu migrations và association, không dùng `sync({ alter: true })` để thay migration.
 
@@ -289,7 +289,7 @@ và .xls, 5 MB, 10.000 dòng; authMiddleware và requireAdmin chạy trước mu
 Kiểm tra cả đuôi file và định dạng binary, không nhận CSV đổi đuôi. Sheet đầu
 với ba header working_date/task/max_off; ngày Excel hoặc YYYY-MM-DD/DD/MM/YYYY,
 task_code MASS/KEY active từ tasks, max_off INTEGER >=0, ngày thuộc kỳ được chọn.
-Dòng trùng và công thức không được chấp nhận. Các kỳ đều chọn được theo ngày
+Dòng trùng và công thức không được chấp nhận. Chỉ chọn kỳ có start_date >= hôm nay theo giờ Việt Nam, sắp xếp
 start_date giảm dần; status kỳ không hạn chế quyền cấu hình capacity của ADMIN.
 
 mode=preview trả {ok,data:{cycleId,rowCount,rows}} (tối đa 100 dòng), không ghi DB.
@@ -325,6 +325,68 @@ Kỳ mới có status OPEN nhưng nhân viên chỉ đăng ký được trong l�
 Không cần cron hay thao tác mở thủ công. Bootstrap ưu tiên kỳ OPEN đang trong
 cửa sổ đăng ký; nếu không có, lấy kỳ OPEN sắp mở gần nhất, rồi kỳ OPEN mới nhất.
 Kỳ tương lai không che khuất kỳ đang nhận đăng ký; nextOpenDate chỉ lấy OPEN.
-ADMIN vẫn xem kỳ mới nhất và bypass lịch như hành vi cũ. Test ngày/transaction/
+API bootstrap chỉ dành cho EMPLOYEE, chọn kỳ theo cửa sổ hiện tại; ADMIN đơn thuần không sử dụng được API này. Test ngày/transaction/
 phân quyền/chọn kỳ bằng stub, không ghi DB:
 `node --test src/test-admin-registration-cycle.js`.
+
+## Import số dư OFF (ADMIN)
+
+GET /api/admin/off-balances/cycles trả danh sách kỳ cùng DTO như import RequireHC.
+POST /api/admin/off-balances/import nhận multipart file, cycleId, mode=preview/import.
+Cả hai route được mount trong admin.routes, có authMiddleware + requireAdmin;
+quyền kiểm tra trước khi nhận file Excel qua excelUpload. Controller trả lỗi
+400 INVALID_OFF_BALANCE_IMPORT kèm errors[{row,message}] tối đa 100 thông báo.
+Lỗi file quá dung lượng trả 413. Không cần schema/migration mới.
+
+File Excel thật .xlsx/.xls, sheet đầu đúng employee_code/entitled_quantity/adjusted_quantity,
+không trùng employee_code, không công thức, tối đa 5 MB/10.000 dòng. employee_code
+là emp_code dạng Text, trim khoảng trắng và phân biệt hoa/thường; tra employee active để lấy emp_id. Số lượng DECIMAL(6,2)
+trong [-9999.99,9999.99], entitlement không âm, tổng hai số không âm. Không nhận
+ô trống hoặc quá hai số thập phân. Preview tra nhân viên, trả mã/tên và tối đa
+100 dòng chuẩn hóa, không transaction/ghi DB. Import kiểm tra lại, khóa employee
+theo ID tăng dần tương thích submit/duyệt/công bố, bulk upsert trong một transaction
+với conflictAttributes emp_id/cycle_id, chỉ cập nhật entitled_quantity,
+adjusted_quantity,updated_at; giữ created_at và các dữ liệu ngoài file.
+Giá trị trong file thay thế, không cộng dồn. Lỗi rollback toàn bộ. Không hủy đơn
+khi giảm số dư; có thể làm remaining âm, không thay giới hạn tối đa 4 OFF/kỳ.
+
+Test stub, không ghi DB: node --test src/test-off-balance-import.js.
+
+getImportCycles dùng chung hai endpoint import, lọc start_date >= ngày hiện tại theo Asia/Ho_Chi_Minh (DATEONLY), không phụ thuộc múi giờ máy chủ. Chỉ đổi danh sách dropdown, không đổi validation của thao tác import.
+
+## Đăng nhập dành riêng cho ADMIN
+
+my_admin dùng POST /api/auth/admin/login và POST /api/auth/admin/refresh-token,
+withCredentials=true. Backend xác thực mật khẩu/trạng thái employee/account,
+lọc role còn hiệu lực bằng getActiveRoles và yêu cầu ADMIN trước khi cấp/đổi token.
+Không đủ quyền trả 403 ADMIN_ACCESS_REQUIRED. Hai endpoint được mount trong auth.routes,
+cookie vẫn HttpOnly với path /api/auth. Interceptor bỏ qua các auth endpoint này
+để tránh vòng lặp refresh. Frontend chỉ lưu phiên khi response có ADMIN; guard
+chặn cả URL trực tiếp và phiên khôi phục thiếu ADMIN, chuyển về /login.
+GET /api/admin/getall cũng có requireAdmin để chặn token nhân viên gọi trực tiếp.
+Các endpoint /api/auth/login và /api/auth/refresh-token thông thường vẫn phục vụ
+my_agent; đăng ký tài khoản công khai không thay đổi. Không sửa grant trong DB,
+giữ nguyên quyền Admin hiện có của vienvietvo. Không cần migration.
+
+## Phân quyền đăng ký, duyệt và công bố OFF
+
+Chỉ EMPLOYEE còn hiệu lực được đăng ký. GET /api/registration/bootstrap,
+POST /api/registration/validate và POST /api/registration/submit có middleware
+requireEmployeeRegistration sau authMiddleware: kiểm tra account ACTIVE,
+employee active, emp_id khớp JWT, role active/theo thời hạn trong DB (ngày UTC+7).
+Thiếu quyền trả 403 EMPLOYEE_ROLE_REQUIRED. Quyền đăng ký truyền vào controller
+là EMPLOYEE, không có bypass lịch cho ADMIN qua các API này. Không đổi grant DB.
+
+Schedule chỉ tải bootstrap và hiển thị form đăng ký khi hồ sơ có EMPLOYEE;
+role khác vẫn xem lịch đã công bố, lịch sử, Published và RequireHC. Quyền UI
+cập nhật sau refresh/đăng nhập; backend luôn kiểm tra quyền hiện tại từ DB.
+TEAM_LEAD đơn thuần không đăng ký, ADMIN/WFM đơn thuần cũng không đăng ký.
+
+Chỉ TEAM_LEAD được duyệt/từ chối/công bố OFF, backend kiểm tra quyền từ DB,
+đúng một team active hiện tại. Chỉ nhân viên cùng team hiện tại, loại trừ bản
+thân; không cho chọn team khác bằng dữ liệu client. Quy tắc APPROVED/PUBLISHED,
+điều kiện xử lý hết đơn chờ trước công bố và snapshot lịch sử được giữ nguyên.
+Test backend stub không ghi DB: node --test src/test-employee-registration-access.js
+src/test-off-approval.js src/test-off-publication.js src/test-off-policy.js.
+
+Profile auth trong login/refresh/me trả thêm user.team = {teamId,teamCode,teamName} hoặc null. Tra emp_team_histories có hiệu lực hôm nay theo Asia/Ho_Chi_Minh, join team active; nếu nhiều dòng thì ưu tiên start_date mới nhất, rồi ID history mới nhất. Không thay schema hay ghi lịch sử team. Header my_agent dùng profile chung nên không cần gọi bootstrap ở từng tab.

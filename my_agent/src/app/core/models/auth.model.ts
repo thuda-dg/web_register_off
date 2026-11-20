@@ -23,6 +23,7 @@ export interface ResetPasswordRequest {
 }
 
 export interface AuthUser {
+  team?: { teamId: number; teamCode: string; teamName: string } | null;
   userAccountId?: number;
   empId?: number;
   empCode?: string;

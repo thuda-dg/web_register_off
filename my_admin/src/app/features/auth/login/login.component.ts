@@ -19,7 +19,7 @@ import { AuthService } from '../../../core/services/auth.services';
           <h1 class="text-2xl font-bold text-emerald-700"> Đăng nhập </h1>
 
           <p class="mt-2 text-sm text-slate-500">
-            Đăng nhập để sử dụng hệ thống admin
+            Chỉ tài khoản có role ADMIN được đăng nhập.
           </p>
         </div>
 
@@ -112,6 +112,7 @@ export class LoginComponent {
     signal('');
 
   submit(): void {
+    if (this.loading()) return;
 
     if (this.form.invalid) {
 

@@ -132,6 +132,7 @@ describe('TEAM_LEAD access', () => {
     expect(fixture.nativeElement.querySelector('[href="/approvals"]')).toBeNull();
     user.set({ roles: [{ roleCode: 'TEAM_LEAD' }] }); fixture.detectChanges();
     const links = [...fixture.nativeElement.querySelectorAll('nav a')].map((link: any) => link.getAttribute('href'));
-    expect(links.slice(0, 2)).toEqual(['/schedule', '/approvals']);
+    expect(links.slice(0, 2)).toEqual(['/approvals', '/published']);
+    expect(links).not.toContain('/schedule'); expect(links).not.toContain('/history');
   });
 });

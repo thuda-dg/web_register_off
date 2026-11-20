@@ -40,7 +40,7 @@ describe('Personal published OFF on Schedule', () => {
   it('is visible on Schedule even when the registration portal is closed and bootstrap has no result yet', () => {
     TestBed.configureTestingModule({ imports: [Schedule], providers: [
       { provide: RegistrationService, useValue: { getBootstrap: () => new Subject() } },
-      { provide: AuthService, useValue: {} },
+      { provide: AuthService, useValue: { currentUser: () => ({ roles: [{ roleCode: 'EMPLOYEE' }] }) } },
       { provide: PublishedScheduleService, useValue: { getMyPublishedSchedule: () => of({ ok: true, rows: [row] }) } }
     ] });
     const fixture = TestBed.createComponent(Schedule); fixture.detectChanges();

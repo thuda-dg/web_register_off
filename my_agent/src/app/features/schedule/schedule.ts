@@ -181,7 +181,11 @@ export class Schedule implements OnInit {
     }> = [];
 
   ngOnInit(): void {
-    this.initializeSchedule();
+    if (this.canRegister) this.initializeSchedule();
+  }
+
+  get canRegister(): boolean {
+    return this.authService.currentUser()?.roles?.some(role => role.roleCode === 'EMPLOYEE') ?? false;
   }
 
   get canBypassTime(): boolean {
@@ -522,6 +526,7 @@ export class Schedule implements OnInit {
   }
 
   submit(): void {
+    if (!this.canRegister) { this.showError('Chỉ role EMPLOYEE được đăng ký OFF.'); return; }
     if (this.editingLocked) return;
     this.confirmedRegistration = null;
     this.clearMessages();
@@ -690,6 +695,7 @@ export class Schedule implements OnInit {
   }
 
   doSubmit(): void {
+    if (!this.canRegister) { this.showError('Chỉ role EMPLOYEE được đăng ký OFF.'); return; }
     if (this.submitting) return;
     if (!this.confirmOpen || !this.confirmedRegistration?.entries.length) {
       this.showError('Chưa có danh sách đã xác nhận. Vui lòng chọn ngày và đăng ký lại.');
@@ -794,25 +800,6 @@ export class Schedule implements OnInit {
       [];
     this.confirmedRegistration = null;
     this.cdr.markForCheck();
-  }
-
-  logout(): void {
-    this.authService
-      .logout()
-      .subscribe({
-        next: () => {
-          console.log(
-            'Đăng xuất thành công.'
-          );
-        },
-
-        error: error => {
-          console.error(
-            'Logout error:',
-            error
-          );
-        }
-      });
   }
 
   private loadSlotStatus(): void {

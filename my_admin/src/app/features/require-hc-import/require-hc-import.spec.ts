@@ -89,7 +89,7 @@ describe('RequireHC Excel import', () => {
     ] });
     let result: any;
     (TestBed.runInInjectionContext(() => adminGuard({} as never, {} as never)) as any).subscribe((value: any) => result = value);
-    expect(TestBed.inject(Router).serializeUrl(result)).toBe('/admin');
+    expect(TestBed.inject(Router).serializeUrl(result)).toBe('/login');
     role = 'ADMIN';
     (TestBed.runInInjectionContext(() => adminGuard({} as never, {} as never)) as any).subscribe((value: any) => result = value);
     expect(result).toBe(true);

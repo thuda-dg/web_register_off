@@ -312,7 +312,7 @@ export class AuthInterceptor implements HttpInterceptor {
     url: string
   ): boolean {
 
-    return /\/api\/auth\/(login|register|refresh-token|forgot-password|reset-password|logout)/
+    return /\/api\/auth\/(?:admin\/)?(login|register|refresh-token|forgot-password|reset-password|logout)/
       .test(url);
   }
 }

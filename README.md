@@ -30,6 +30,7 @@ Tài liệu chi tiết: [Backend](backend/README.md), [My Agent](my_agent/README
 | Cập nhật team cho nhân viên | API thật, yêu cầu ADMIN; dropdown chọn một team, lưu lịch sử chuyển team |
 | Cập nhật task cho nhân viên | API thật, yêu cầu ADMIN; dropdown chọn một task, lưu lịch sử chuyển task |
 | Import Excel RequireHC | ADMIN upload .xlsx/.xls, chọn kỳ, kiểm tra trước và nhập/cập nhật hạn mức theo ngày/task |
+| Import Excel số dư OFF | ADMIN chọn kỳ, kiểm tra Excel và nhập/cập nhật employee_cycle_offs theo nhân viên/kỳ |
 | Tạo kỳ đăng ký OFF | ADMIN nhập ngày bắt đầu/kết thúc; tự đặt lịch 17–23 tháng trước cho tháng của ngày kết thúc |
 | Duyệt OFF | API thật, chỉ TEAM_LEAD; nhân viên cùng team hiện tại, không tự duyệt |
 | Công bố OFF | TEAM_LEAD công bố các đơn APPROVED theo kỳ tại tab Published; Schedule/Published hiển thị lịch đã công bố |
@@ -130,7 +131,7 @@ Hai frontend cấu hình `environment.apiUrl` là `http://localhost:3000/api`. R
 Các role trong master seed là `EMPLOYEE`, `TEAM_LEAD`, `WFM`, `ADMIN`. Luồng tạo/gán role chỉ nhận đúng một role cho mỗi tài khoản. DTO vẫn giữ mảng roles để tương thích; không tự đổi các grant cũ trong DB.
 
 - Tạo user, lấy tùy chọn team/role và cập nhật role yêu cầu ADMIN hiện tại từ database, tài khoản ACTIVE và nhân viên active.
-- Danh sách nhân viên `/api/admin/getall` hiện chỉ yêu cầu đăng nhập, chưa có kiểm tra ADMIN. `AuthGuard` ở trang admin cũng chỉ kiểm tra phiên.
+- Danh sách nhân viên `/api/admin/getall` yêu cầu ADMIN hiện tại từ DB; AuthGuard của my_admin kiểm tra cả phiên và role ADMIN.
 - API `/api/auth/register` vẫn công khai, tạo tài khoản với role EMPLOYEE. Quy tắc “chỉ ADMIN được tạo user” áp dụng cho luồng quản trị, không phải mọi cách tạo tài khoản.
 - Access token giữ trong memory frontend; refresh token ở cookie HttpOnly. Login/refresh luân chuyển refresh token và database lưu hash.
 - Role theo thời hạn được lọc khi login/refresh. Các API quản trị được bảo vệ bằng kiểm tra database; luồng đăng ký lịch nghỉ vẫn lấy role từ JWT.
@@ -166,3 +167,5 @@ Test này stub các thao tác model, không ghi database. `npm test` backend hi�
 - Test `my_agent/src/app/app.spec.ts` vẫn kiểm tra tiêu đề Angular mẫu; cần đối chiếu template khi gặp lỗi test này.
 
 Đây là các giới hạn đọc được từ source, không phải xác nhận đã kiểm thử tích hợp trên database thực tế.
+
+Trong my_agent: đăng ký OFF yêu cầu EMPLOYEE hiện tại từ DB; duyệt và công bố yêu cầu TEAM_LEAD, chỉ nhân viên cùng team hiện tại và loại trừ bản thân. ADMIN không tự có quyền của hai role này.

@@ -7,7 +7,7 @@ import { RegistrationService } from '../../core/services/registration.service';
 import { AuthService } from '../../core/services/auth.service';
 import { BootstrapData } from '../../core/models/registration.model';
 
-function setup() {
+function setup(role = 'EMPLOYEE') {
   const validation = new Subject<any>();
   const submission = new Subject<any>();
   const service = {
@@ -16,7 +16,7 @@ function setup() {
   };
   TestBed.configureTestingModule({ providers: [
     { provide: RegistrationService, useValue: service },
-    { provide: AuthService, useValue: {} },
+    { provide: AuthService, useValue: { currentUser: () => ({ roles: [{ roleCode: role }] }) } },
     { provide: PublishedScheduleService, useValue: { getMyPublishedSchedule: () => of({ ok: true, rows: [] }) } }
   ] });
   const fixture = TestBed.createComponent(Schedule);
@@ -31,6 +31,16 @@ function setup() {
 }
 
 describe('Schedule confirmation payload', () => {
+  for (const role of ['ADMIN', 'TEAM_LEAD', 'WFM']) {
+    it(`does not let ${role} validate or submit a registration`, () => {
+      const { component, service } = setup(role);
+      component.bootstrapData = null;
+      expect(component.canRegister).toBe(false);
+      component.submit(); component.doSubmit();
+      expect(service.validateRegistration).not.toHaveBeenCalled();
+      expect(service.submitRegistration).not.toHaveBeenCalled();
+    });
+  }
   it('locks removal while validation is pending and submits the validated snapshot', () => {
     const { component, service, validation } = setup();
     component.submit();

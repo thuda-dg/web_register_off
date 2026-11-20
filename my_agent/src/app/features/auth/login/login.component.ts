@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { agentLanding } from '../../../core/guards/screen-access.guard';
 import { Component, inject, signal } from '@angular/core';
 import {  FormBuilder,  FormGroup,  ReactiveFormsModule,  Validators} from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -147,7 +148,7 @@ export class LoginComponent {
 
         next: () => {
           this.router.navigate([
-            '/schedule'
+            agentLanding(this.authService.currentUser())
           ]);
         },
         error: (error) => {

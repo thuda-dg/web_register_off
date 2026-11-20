@@ -18,15 +18,16 @@ Nếu chạy đồng thời agent ở 4200 và admin ở 4201, đặt `FRONTEND_
 ## Route và quyền
 
 - `/login`: đăng nhập bằng mã nhân viên hoặc email.
-- `/admin`: danh sách nhân viên active; có AuthGuard kiểm tra phiên.
+- `/admin`: danh sách nhân viên active; AuthGuard kiểm tra phiên và ADMIN.
 - `/admin/require-hc/import`: import Excel RequireHC, có guard ADMIN.
+- `/admin/off-balances/import`: import số dư OFF nhân viên theo kỳ, có guard ADMIN.
 - `/admin/registration-cycles`: tạo và xem danh sách kỳ đăng ký OFF, có guard ADMIN.
 - Trang gốc chuyển tới `/admin`.
 - Chưa có route detail/edit employee hoạt động; route đăng ký trong app admin đang comment.
 
 Nút tạo user và cập nhật role chỉ hiện khi hồ sơ có ADMIN. Backend kiểm tra ADMIN hiện tại từ database cho các API này, không chỉ tin giao diện hoặc token cũ.
 
-Riêng API danh sách `/api/admin/getall` hiện chỉ yêu cầu đăng nhập; AuthGuard cũng chưa phải guard riêng cho ADMIN. API `/api/auth/register` công khai ở backend vẫn là một cách tự đăng ký EMPLOYEE, dù admin app không có trang register.
+API danh sách `/api/admin/getall` yêu cầu ADMIN hiện tại từ DB; AuthGuard chặn mọi tài khoản thiếu ADMIN. API `/api/auth/register` công khai ở backend vẫn là một cách tự đăng ký EMPLOYEE, dù admin app không có trang register.
 
 ## Danh sách nhân viên
 
@@ -91,7 +92,7 @@ vẫn yêu cầu team/task có hiệu lực vào ngày bắt đầu kỳ. Số d
 
 | Method | Đường dẫn | Quyền |
 | --- | --- | --- |
-| GET | `/api/admin/getall` | Đăng nhập |
+| GET | `/api/admin/getall` | ADMIN hiện tại |
 | GET | `/api/admin/registration-cycles` | ADMIN hiện tại |
 | POST | `/api/admin/registration-cycles` | ADMIN hiện tại |
 | GET | `/api/admin/users/options` | ADMIN hiện tại |
@@ -187,8 +188,51 @@ Kỳ mới lưu `OPEN` để nhận đăng ký theo lịch; frontend hiển th�
 đang nhận hoặc hết thời gian theo giờ thực tế. Không cần cron đổi trạng thái
 hằng tháng hay bấm mở thủ công. Chức năng này không tự tạo kỳ tháng tiếp theo,
 RequireHC hay số dư OFF; cần cấu hình các dữ liệu đó riêng. Không đổi lịch kỳ
-đã có và không cần migration mới. Quyền bypass lịch của ADMIN trong luồng đăng
-ký hiện có vẫn được giữ. Test backend không ghi DB:
+đã có và không cần migration mới. Đăng ký OFF trong my_agent yêu cầu EMPLOYEE hiện tại, không có bypass lịch cho ADMIN qua API đăng ký. Test backend không ghi DB:
 `node --test src/test-admin-registration-cycle.js`.
 
 Mỗi lần tạo/cập nhật role chỉ nhận đúng một ID. API từ chối mảng rỗng hoặc nhiều ID. Role cũ khác lựa chọn được kết thúc theo lịch sử trong transaction; nếu có grant tương lai thì trả 409 để xử lý trước. Không tự chuẩn hóa DB hiện có, không đổi role Admin của vienvietvo.
+
+## Import Excel số dư OFF
+
+Từ danh sách nhân viên, ADMIN chọn **Import Excel số dư OFF**, chọn kỳ, chọn file,
+bấm **Kiểm tra file**, xem trước rồi bấm **Nhập dữ liệu**. Đổi kỳ/file sẽ xóa
+bản xem trước. Khi lỗi vẫn giữ file/kỳ để thử lại; không cho gửi trùng lúc xử lý.
+
+Sheet đầu tiên cần đúng ba cột (cho đổi thứ tự):
+
+| employee_code | entitled_quantity | adjusted_quantity |
+| --- | --- | --- |
+| NV003 | 4 | 0 |
+| NV004 | 4 | -1 |
+
+employee_code là mã nhân viên emp_code (ô Excel dạng Text), backend tra mã để lấy emp_id; không phải ID tài khoản. Mã được trim khoảng trắng, phân biệt hoa/thường, giữ số 0 đầu. Nhân viên
+phải tồn tại và active. entitled_quantity không âm, adjusted_quantity cho phép
+âm; mỗi giá trị trong phạm vi DECIMAL(6,2), tổng hai số không âm. Không để trống
+số lượng (nhập 0 khi không điều chỉnh). Không dùng công thức hoặc trùng ID.
+Chỉ .xlsx/.xls thật, tối đa 5 MB/10.000 dòng; xem trước tối đa 100 dòng, báo tối
+đa 100 lỗi có số dòng. File có lỗi không được nhập một phần.
+
+Nhập sẽ thêm/cập nhật theo emp_id + cycle_id, **thay thế** hai giá trị số lượng,
+không cộng dồn, không xóa nhân viên/kỳ không có trong file. Giảm số lượng không
+hủy đơn đã đăng ký, có thể làm số dư còn lại âm. Rule tối đa 4 OFF/kỳ không đổi.
+Không cần migration hoặc dependency mới.
+
+API: GET /api/admin/off-balances/cycles và POST /api/admin/off-balances/import.
+POST multipart gồm file, cycleId, mode (preview/import). Chỉ ADMIN từ DB.
+
+Dropdown chọn kỳ của cả import RequireHC và import số dư OFF chỉ hiển thị kỳ có start_date >= ngày hiện tại theo giờ Việt Nam (UTC+7), bao gồm hôm nay.
+
+## Đăng nhập dành riêng cho ADMIN
+
+my_admin dùng POST /api/auth/admin/login và POST /api/auth/admin/refresh-token,
+withCredentials=true. Backend xác thực mật khẩu/trạng thái employee/account,
+lọc role còn hiệu lực bằng getActiveRoles và yêu cầu ADMIN trước khi cấp/đổi token.
+Không đủ quyền trả 403 ADMIN_ACCESS_REQUIRED. Hai endpoint được mount trong auth.routes,
+cookie vẫn HttpOnly với path /api/auth. Interceptor bỏ qua các auth endpoint này
+để tránh vòng lặp refresh. Frontend chỉ lưu phiên khi response có ADMIN; guard
+chặn cả URL trực tiếp và phiên khôi phục thiếu ADMIN, chuyển về /login.
+GET /api/admin/getall cũng có requireAdmin để chặn token nhân viên gọi trực tiếp.
+Các endpoint /api/auth/login và /api/auth/refresh-token thông thường vẫn phục vụ
+my_agent; đăng ký tài khoản công khai không thay đổi. Không sửa grant trong DB,
+giữ nguyên quyền Admin hiện có của vienvietvo. Không cần migration.

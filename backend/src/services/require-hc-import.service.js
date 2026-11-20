@@ -79,7 +79,16 @@ function parseExcel(file) {
 }
 
 async function getImportCycles() {
-  const cycles = await RegistrationCycle.findAll({ attributes: ['cycle_id', 'cycle_name', 'start_date', 'end_date', 'status'], order: [['start_date', 'DESC']] });
+  const parts = new Intl.DateTimeFormat('en', {
+    timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).formatToParts(new Date());
+  const value = key => parts.find(part => part.type === key).value;
+  const today = `${value('year')}-${value('month')}-${value('day')}`;
+  const cycles = await RegistrationCycle.findAll({
+    attributes: ['cycle_id', 'cycle_name', 'start_date', 'end_date', 'status'],
+    where: { start_date: { [Op.gte]: today } },
+    order: [['start_date', 'DESC']]
+  });
   return { ok: true, items: cycles.map(cycle => ({ id: Number(cycle.cycle_id), name: cycle.cycle_name,
     startDate: cycle.start_date, endDate: cycle.end_date, status: cycle.status })) };
 }

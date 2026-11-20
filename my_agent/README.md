@@ -29,7 +29,7 @@ Mở [localhost:4200](http://localhost:4200). Backend mặc định tại `http:
 | `/published` | Lịch nghỉ đã chốt, bộ lọc và thống kê | API registration/published |
 | `/require-hc` | Bảng capacity, bộ lọc và thống kê | API registration/require-hc |
 
-Các trang trong MainLayout được bảo vệ bằng AuthGuard. Trang gốc chuyển tới `/schedule`. Component `home` tồn tại nhưng không phải route hiện hành.
+Các trang trong MainLayout được bảo vệ bằng AuthGuard. Trang gốc tới `/schedule`, route guard chuyển TEAM_LEAD sang `/approvals`; đăng nhập TEAM_LEAD cũng vào `/approvals`. Component `home` tồn tại nhưng không phải route hiện hành.
 
 RequireHC trên trang đăng ký lấy từ bootstrap; bảng `/require-hc` gọi API riêng và dùng cùng quy tắc đếm OFF từ database. Hạn mức theo task được dùng chung giữa các team.
 
@@ -168,3 +168,44 @@ Từ chối giải phóng số dư OFF và slot ở lần tải tiếp theo do t
 không nằm trong ACTIVE_BALANCE_STATUSES. Không sửa snapshot team/task.
 Không cần migration/seed. Kiểm tra frontend: npm test -- --watch=false
 --include=src/app/features/off-approvals/off-approvals.spec.ts (một dòng lệnh).
+
+## Phân quyền đăng ký, duyệt và công bố OFF
+
+Chỉ EMPLOYEE còn hiệu lực được đăng ký. GET /api/registration/bootstrap,
+POST /api/registration/validate và POST /api/registration/submit có middleware
+requireEmployeeRegistration sau authMiddleware: kiểm tra account ACTIVE,
+employee active, emp_id khớp JWT, role active/theo thời hạn trong DB (ngày UTC+7).
+Thiếu quyền trả 403 EMPLOYEE_ROLE_REQUIRED. Quyền đăng ký truyền vào controller
+là EMPLOYEE, không có bypass lịch cho ADMIN qua các API này. Không đổi grant DB.
+
+Schedule chỉ tải bootstrap và hiển thị form đăng ký khi hồ sơ có EMPLOYEE;
+quyền xem các tab được giới hạn theo role như bảng phân quyền màn hình bên dưới. Quyền UI
+cập nhật sau refresh/đăng nhập; backend luôn kiểm tra quyền hiện tại từ DB.
+TEAM_LEAD đơn thuần không đăng ký, ADMIN/WFM đơn thuần cũng không đăng ký.
+
+Chỉ TEAM_LEAD được duyệt/từ chối/công bố OFF, backend kiểm tra quyền từ DB,
+đúng một team active hiện tại. Chỉ nhân viên cùng team hiện tại, loại trừ bản
+thân; không cho chọn team khác bằng dữ liệu client. Quy tắc APPROVED/PUBLISHED,
+điều kiện xử lý hết đơn chờ trước công bố và snapshot lịch sử được giữ nguyên.
+Test backend stub không ghi DB: node --test src/test-employee-registration-access.js
+src/test-off-approval.js src/test-off-publication.js src/test-off-policy.js.
+
+## Quyền truy cập màn hình
+
+| Role | Schedule | History | Published | Duyệt OFF | RequireHC |
+| --- | --- | --- | --- | --- | --- |
+| EMPLOYEE | Có | Có | Không | Không | Có |
+| TEAM_LEAD | Không | Không | Có | Có | Có |
+
+Ẩn tab và chặn cả URL trực tiếp bằng route guard, sau khi khôi phục phiên nếu
+cần. EMPLOYEE truy cập Published sẽ về Schedule; TEAM_LEAD truy cập Schedule
+hoặc History sẽ về Duyệt OFF. Đăng nhập TEAM_LEAD vào thẳng Duyệt OFF.
+ADMIN/WFM giữ quyền xem màn hình trước đó; quyền thực hiện đăng ký/duyệt/công
+bố vẫn kiểm tra riêng ở backend. Với grant cũ nhiều role, áp dụng tất cả điều
+kiện cấm: có EMPLOYEE không vào Published, có TEAM_LEAD không vào Schedule/History.
+Không đổi dữ liệu role hay quyền API đọc lịch cá nhân: EMPLOYEE vẫn xem OFF
+đã công bố trong Schedule qua GET published?mine=true.
+
+Nút Đăng xuất nằm trên header MainLayout, dùng được ở mọi tab; ngăn bấm lặp khi đang gửi. Dùng AuthService hiện có để thu hồi phiên và chuyển về login.
+
+Header MainLayout hiển thị họ tên, mã nhân viên và team hiện tại trên mọi tab, lấy từ AuthService.currentUser. Team lấy theo ngày hiện tại UTC+7, không theo snapshot kỳ đăng ký; cập nhật khi đăng nhập/refresh phiên. Không có team hiện tại thì hiển thị thông báo tương ứng.

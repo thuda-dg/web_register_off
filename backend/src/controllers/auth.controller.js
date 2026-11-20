@@ -79,6 +79,7 @@ async function login(
         req.body,
         {
           ipAddress: req.ip,
+          requireAdmin: req.adminAuth === true,
           userAgent:
             req.get('User-Agent')
         }
@@ -125,12 +126,13 @@ async function refresh(
       req.cookies?.[
         REFRESH_TOKEN_COOKIE
       ];
-    console.log('refreshToken:', refreshToken);
+
     const result =
       await refreshSession(
         refreshToken,
         {
           ipAddress: req.ip,
+          requireAdmin: req.adminAuth === true,
           userAgent:
             req.get('User-Agent')
         }
